@@ -1,0 +1,15 @@
+# Ignore uploads folder outside project
+../uploads/
+settings/db_cred.php
+
+# Ignore log files
+*.log
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore PHPStorm or VSCode settings
+.idea/
+.vscode/
+
