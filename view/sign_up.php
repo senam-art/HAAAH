@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../settings/core.php';
+hasLoggedIn();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,9 +22,16 @@
             }
         }
     </script>
-    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }</style>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }
+        /* Make scroll bar visible and styled */
+        body { scrollbar-color: rgba(255,255,255,0.08) rgba(255,255,255,0.02); }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+    </style>
 </head>
-<body class="selection:bg-brand-accent selection:text-black min-h-screen flex flex-col relative overflow-hidden">
+<body class="selection:bg-brand-accent selection:text-black min-h-screen flex flex-col relative overflow-auto">
 
     <!-- Background Elements -->
     <div class="absolute inset-0 z-0">
@@ -47,15 +58,16 @@
                 <p class="text-gray-400 text-sm">Create your player profile to find games near you.</p>
             </div>
 
-            <form class="space-y-4">
+            <form id="signupForm" class="space-y-4" novalidate>
+                <div id="formMessage" class="text-center text-sm hidden mb-4"></div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">First Name</label>
-                        <input type="text" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none">
+                        <input id="firstName" name="first_name" required type="text" value="Test" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Last Name</label>
-                        <input type="text" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none">
+                        <input id="lastName" name="last_name" required type="text" value="User" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none">
                     </div>
                 </div>
 
@@ -63,7 +75,7 @@
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Location / Neighborhood</label>
                     <div class="relative group">
                         <i data-lucide="map-pin" class="absolute left-3 top-3 text-brand-accent" size="18"></i>
-                        <input type="text" placeholder="Search your area (e.g. East Legon)" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
+                        <input id="location" name="location" required type="text" placeholder="Search your area (e.g. East Legon)" value="Testville" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
                         <!-- Simulated Google Maps Autocomplete Dropdown -->
                         <div class="absolute top-full left-0 w-full bg-[#252530] border border-white/10 rounded-xl mt-1 hidden group-focus-within:block shadow-xl z-20">
                             <div class="p-2 text-xs text-gray-500 border-b border-white/5">Google Maps Suggestions</div>
@@ -82,15 +94,38 @@
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
                     <div class="relative">
                         <i data-lucide="mail" class="absolute left-3 top-3 text-gray-500" size="18"></i>
-                        <input type="email" placeholder="you@example.com" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
+                        <input id="email" name="email" required type="email" placeholder="you@example.com" value="test+1@example.com" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Username</label>
                     <div class="relative">
-                        <i data-lucide="lock" class="absolute left-3 top-3 text-gray-500" size="18"></i>
-                        <input type="password" placeholder="Create a strong password" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
+                        <i data-lucide="mail" class="absolute left-3 top-3 text-gray-500" size="18"></i>
+                        <input id="username" name="username" required type="text" placeholder="eg.r2trappy" value="testuser" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
+                        <p id="usernameError" class="mt-2 text-xs text-red-400 hidden">Username must be at least 4 characters.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+                            <div class="relative">
+                                <i data-lucide="lock" class="absolute left-3 top-3 text-gray-500" size="18"></i>
+                                <input id="password" type="password" name="password" required placeholder="Create a strong password" value="TestPass123!" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
+                                <p id="passwordError" class="mt-2 text-xs text-red-400 hidden">Password must be at least 8 characters.</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Confirm Password</label>
+                            <div class="relative">
+                                <i data-lucide="lock" class="absolute left-3 top-3 text-gray-500" size="18"></i>
+                                <input id="confirmPassword" type="password" name="confirm_password" required placeholder="Repeat your password" value="TestPass123!" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
+                                <p id="confirmError" class="mt-2 text-xs text-red-400 hidden">Passwords do not match.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -113,6 +148,6 @@
         </div>
     </main>
 
-    <script>lucide.createIcons();</script>
+    <script src="../js/sign_up.js"></script>
 </body>
 </html>

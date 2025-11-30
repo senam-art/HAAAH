@@ -1,3 +1,6 @@
+<?php
+require_once '../settings/core.php';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -103,12 +106,12 @@
                 Member Features
             </div>
 
-            <a href="login.html" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-500 border border-dashed border-white/10 hover:border-brand-accent hover:text-brand-accent transition-all group opacity-70">
+            <a href="login.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-500 border border-dashed border-white/10 hover:border-brand-accent hover:text-brand-accent transition-all group opacity-70">
                 <i data-lucide="layout-dashboard" size="18"></i>
                 <span class="text-sm">My Dashboard</span>
             </a>
             
-            <a href="login.html" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-500 border border-dashed border-white/10 hover:border-brand-accent hover:text-brand-accent transition-all group opacity-70">
+            <a href="login.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-500 border border-dashed border-white/10 hover:border-brand-accent hover:text-brand-accent transition-all group opacity-70">
                 <i data-lucide="wallet" size="18"></i>
                 <span class="text-sm">Wallet & Earnings</span>
             </a>
@@ -159,14 +162,14 @@
                 </div>
                 <h3 class="font-bold text-white mb-1">Join the Squad</h3>
                 <p class="text-xs text-purple-200 mb-3">Track stats and find local games.</p>
-                <a href="signup.html" class="block text-center text-xs font-bold bg-white text-purple-900 px-3 py-2 rounded-lg w-full hover:bg-purple-50 transition-colors">
+                <a href="sign_up.php" class="block text-center text-xs font-bold bg-white text-purple-900 px-3 py-2 rounded-lg w-full hover:bg-purple-50 transition-colors">
                     Sign Up Free
                 </a>
             </div>
         </div>
 
         <!-- Sidebar Footer (User) -->
-        <div id="footer-user" class="hidden-force p-4 border-t border-white/5">
+        <div id="footer-user" class="hidden-force p-4 border-t border-white/5 space-y-2">
             <a href="profile.html" class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition-colors">
                 <div class="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center font-bold">JM</div>
                 <div>
@@ -174,6 +177,10 @@
                     <div class="text-xs text-brand-accent">View Profile</div>
                 </div>
             </a>
+            <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-sm font-bold">
+                <i data-lucide="log-out" size="18"></i>
+                <span>Log Out</span>
+            </button>
         </div>
     </aside>
 
@@ -194,13 +201,13 @@
 
             <!-- GUEST HEADER ACTIONS -->
             <div id="header-guest" class="flex items-center gap-3">
-                <a href="login.html" class="hidden sm:flex items-center gap-2 px-6 py-2 bg-transparent text-white font-bold hover:text-brand-accent transition-colors text-sm">
+                <a href="login.php" class="hidden sm:flex items-center gap-2 px-6 py-2 bg-transparent text-white font-bold hover:text-brand-accent transition-colors text-sm">
                     Log In
                 </a>
-                <a href="signup.html" class="px-5 py-2 bg-white text-black font-bold rounded-full text-sm hover:bg-gray-200 transition-colors">
+                <a href="sign_up.php" class="px-5 py-2 bg-white text-black font-bold rounded-full text-sm hover:bg-gray-200 transition-colors">
                     Sign Up
                 </a>
-                <a href="create-event.html" class="px-5 py-2 bg-brand-accent hover:bg-[#2fe080] text-black font-bold rounded-full text-sm transition-transform hover:scale-105 flex items-center gap-2">
+                <a href="create-event.php" class="px-5 py-2 bg-brand-accent hover:bg-[#2fe080] text-black font-bold rounded-full text-sm transition-transform hover:scale-105 flex items-center gap-2">
                     <i data-lucide="plus" size="16"></i> Host Match
                 </a>
             </div>
@@ -354,7 +361,7 @@
                         </div>
                         <h3 class="font-bold text-lg mb-2">Track Your Stats</h3>
                         <p class="text-sm text-gray-400 mb-4">Sign in to build your player card and get rated.</p>
-                        <a href="login.html" class="block w-full py-2 bg-white/10 border border-white/10 rounded-lg text-sm font-bold hover:bg-white/20 transition-colors">Log In / Sign Up</a>
+                        <a href="login.php" class="block w-full py-2 bg-white/10 border border-white/10 rounded-lg text-sm font-bold hover:bg-white/20 transition-colors">Log In / Sign Up</a>
                     </div>
 
                     <!-- Top Venues -->
@@ -397,11 +404,6 @@
 
     </main>
 
-    <!-- Dev Tool: Auth Simulator Button -->
-    <button onclick="toggleAuthState()" class="fixed bottom-4 left-4 z-50 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-full shadow-lg hover:bg-red-700 transition-colors">
-        <i data-lucide="refresh-cw" size="12" class="inline mr-1"></i> Toggle Guest/User
-    </button>
-
     <!-- Scripts -->
     <script>
         // Initialize Icons
@@ -416,16 +418,9 @@
             overlay.classList.toggle('hidden');
         }
 
-        // --- AUTH SIMULATION LOGIC ---
-        // In a real app, this connects to your backend/Firebase
-        let isLoggedIn = false;
-
-        function toggleAuthState() {
-            isLoggedIn = !isLoggedIn;
-            updateUI();
-        }
-
+        // Update UI based on server-side auth state
         function updateUI() {
+            const isLoggedIn = <?php echo json_encode(isLoggedIn()); ?>;
             const guestElements = ['nav-guest', 'footer-guest', 'header-guest', 'hero-guest', 'widget-guest-login'];
             const userElements = ['nav-user', 'footer-user', 'header-user', 'hero-user'];
 
@@ -439,6 +434,14 @@
                 guestElements.forEach(id => document.getElementById(id)?.classList.remove('hidden-force'));
             }
         }
+
+        // Logout function
+        function logout() {
+            window.location.href = '../actions/logout.php';
+        }
+
+        // Initialize UI on page load
+        updateUI();
 
         // Header Scroll Effect
         const header = document.getElementById('main-header');

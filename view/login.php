@@ -44,12 +44,12 @@
                 <p class="text-gray-400 text-sm">Enter your details to access your games.</p>
             </div>
 
-            <form class="space-y-4">
+            <form id="loginForm" class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
                     <div class="relative">
                         <i data-lucide="mail" class="absolute left-3 top-3 text-gray-500" size="18"></i>
-                        <input type="email" placeholder="you@example.com" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none transition-colors">
+                        <input type="email" name="email" placeholder="you@example.com" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none transition-colors">
                     </div>
                 </div>
 
@@ -60,7 +60,7 @@
                     </div>
                     <div class="relative">
                         <i data-lucide="lock" class="absolute left-3 top-3 text-gray-500" size="18"></i>
-                        <input type="password" placeholder="••••••••" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none transition-colors">
+                        <input type="password" name="password" placeholder="••••••••" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none transition-colors">
                     </div>
                 </div>
 
@@ -69,12 +69,12 @@
                 </button>
             </form>
 
-            <div class="relative my-8">
+            <!-- <div class="relative my-8">
                 <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/10"></div></div>
                 <div class="relative flex justify-center text-xs uppercase"><span class="bg-brand-card px-2 text-gray-500">Or continue with</span></div>
-            </div>
+            </div> -->
 
-            <div class="grid grid-cols-2 gap-4">
+            <!-- <div class="grid grid-cols-2 gap-4">
                 <button class="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-colors">
                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5">
                     <span class="text-sm font-medium">Google</span>
@@ -83,7 +83,7 @@
                     <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" class="w-5 h-5">
                     <span class="text-sm font-medium">Facebook</span>
                 </button>
-            </div>
+            </div> -->
 
             <p class="mt-8 text-center text-sm text-gray-400">
                 Don't have an account? 
@@ -93,5 +93,6 @@
     </main>
 
     <script>lucide.createIcons();</script>
+    <script src="../js/login.js"></script>
 </body>
 </html>

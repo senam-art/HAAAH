@@ -1,6 +1,13 @@
 <?php
-//start session
-session_start(); 
+
+if (!defined('PROJECT_ROOT')) {
+    define('PROJECT_ROOT', dirname(__DIR__));
+}
+
+// Start session only once
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 //for header redirection
 ob_start();
@@ -51,14 +58,14 @@ function getUserName() {
  */
 function requireLogin() {
     if (!isLoggedIn()) {
-        header('Location: ' . dirname($_SERVER['PHP_SELF'], 3) . '/index.php');
+        header('Location: ' . dirname($_SERVER['PHP_SELF'], 3) . '/view/homepage.php');
         exit;
     }
 }
 
 function hasLoggedIn() {
     if (isLoggedIn()) {
-        header('Location: ' . dirname($_SERVER['PHP_SELF'], 3) . '/index.php');
+        header('Location: ' . dirname($_SERVER['PHP_SELF'], 1) . '/homepage.php');
         exit;
     }
 }
@@ -75,4 +82,3 @@ function requireAdmin() {
 ?>
 
 
-?>

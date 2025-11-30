@@ -30,7 +30,8 @@ class User extends db_connection
 
         if (!$data) return false;
 
-        $this->name = $data['customer_name'];
+        $this->first_name = $data['first_name'];
+        $this->last_name = $data['last_name'];
         $this->email = $data['customer_email'];
         $this->phone_number = $data['customer_contact'];
         $this->date_created = $data['date_created'] ?? null;
@@ -39,13 +40,15 @@ class User extends db_connection
     }
 
     // Create a new user
-    public function createUser($name, $email, $password, $phone, $country, $city)
+    public function createUser($first_name, $last_name, $email, $username, $password, $location)
     {
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $this->db->prepare(
-            "INSERT INTO customer (customer_name, customer_email, customer_pass, customer_contact, customer_country, customer_city) VALUES (?, ?, ?, ?, ?, ?)"
+            "INSERT INTO users 
+            (first_name, last_name, email, user_name, password, location) 
+            VALUES (?, ?, ?, ?, ?, ?)"
         );
-        $stmt->bind_param("ssssss", $name, $email, $hashed_password, $phone, $country, $city);
+        $stmt->bind_param("ssssss", $first_name, $last_name, $email, $username, $hashed_password, $location);
         if ($stmt->execute()) {
             return $this->db->insert_id;
         }
@@ -55,20 +58,20 @@ class User extends db_connection
     // Get user data by email
     public function getUserByEmail($email)
     {
-        $stmt = $this->db->prepare("SELECT * FROM customer WHERE customer_email = ? LIMIT 1");
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         return $stmt->get_result()->fetch_assoc();
     }
 
-    // Login user
-    public function loginUser($email, $password)
+
+    // Get user data by username
+    public function getUserByUsername($username)
     {
-        $user = $this->getUserByEmail($email);
-        if ($user && password_verify($password, $user['customer_pass'])) {
-            return $user;
-        }
-        return false;
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE user_name = ? LIMIT 1");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        return $stmt->get_result()->fetch_assoc();
     }
 
     // Getters
