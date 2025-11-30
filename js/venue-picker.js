@@ -4,6 +4,7 @@ let allVenues = [];
 let currentVenueIndex = 0;
 let selectedVenue = null;
 let venueMarker = null;
+let userMarker = null;
 
 // Initialize map and venue picker
 function initVenuePicker() {
@@ -23,6 +24,29 @@ function initVenuePicker() {
         gestureHandling: 'greedy'
     });
 
+    // Show user's current location
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                userMarker = new google.maps.Marker({
+                    position: userPos,
+                    map,
+                    title: 'Your Location',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#4285F4',
+                        fillOpacity: 1,
+                        strokeWeight: 2,
+                        strokeColor: 'white'
+                    }
+                });
+            },
+            err => console.warn('Geolocation failed:', err)
+        );
+    }
+
     fetchAllVenues();
 }
 
@@ -31,10 +55,11 @@ function fetchAllVenues() {
     fetch('../actions/get_venues_action.php?action=all')
         .then(res => res.json())
         .then(data => {
-            if (!data.success || !Array.isArray(data.data)) {
-                throw new Error(data.message || 'No venues returned');
+            const venues = data?.data?.data; // Handle nested structure
+            if (!Array.isArray(venues) || !venues.length) {
+                throw new Error(data?.data?.message || 'No venues returned');
             }
-            allVenues = data.data;
+            allVenues = venues;
             currentVenueIndex = 0;
             displayVenue();
         })
@@ -45,7 +70,7 @@ function fetchAllVenues() {
         });
 }
 
-// Display current venue
+// Display current venue card
 function displayVenue() {
     if (!allVenues.length) {
         document.getElementById('venue-card-container').innerHTML =

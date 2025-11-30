@@ -97,13 +97,16 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm text-gray-400 mb-2">Date</label>
-                            <input type="date" name="event_date" required class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 focus:border-brand-accent focus:outline-none">
+                            <input type="date" name="event_date" id="event_date" required
+                                class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 focus:border-brand-accent focus:outline-none">
                         </div>
                         <div>
                             <label class="block text-sm text-gray-400 mb-2">Time</label>
-                            <input type="time" name="event_time" required class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 focus:border-brand-accent focus:outline-none">
+                            <input type="time" name="event_time" id="event_time" required
+                                class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 focus:border-brand-accent focus:outline-none">
                         </div>
                     </div>
+
                 </div>
             </div>
 
@@ -114,20 +117,21 @@
                 </h2>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Map View -->
-                    <div>
-                        <div id="venue-map" class="border border-white/10 mb-4"></div>
-                        <p class="text-xs text-gray-500 text-center">
-                            <i data-lucide="info" size="12" class="inline"></i> 
-                            Browse venues using the arrows. Map shows location.
-                        </p>
-                    </div>
-
                     <!-- Venue Card Browser -->
                     <div>
                         <div id="venue-card-container" class="min-h-[400px] flex items-center justify-center">
                             <p class="text-gray-400">Loading venues...</p>
                         </div>
+                        <br>
+                        <p class="text-xs text-gray-500 text-center">
+                            <i data-lucide="info" size="12" class="inline"></i> 
+                            Browse venues using the arrows. Map shows location.
+                        </p>
+                    </div>
+                    <!-- Map View -->
+                    <div>
+                        <div id="venue-map" class="border border-white/10 mb-4"></div>
+    
                     </div>
                 </div>
 

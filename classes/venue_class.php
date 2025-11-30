@@ -11,64 +11,51 @@ class Venue extends db_connection
     }
 
     /**
-     * Get all unique cities
-     */
-    public function getAllCities()
-    {
-        $stmt = $this->db->prepare("SELECT DISTINCT city FROM venues WHERE available = 1 ORDER BY city ASC");
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $cities = [];
-        while ($row = $result->fetch_assoc()) {
-            $cities[] = $row['city'];
-        }
-        return $cities;
-    }
-
-    /**
-     * Get venues by city
-     */
-    public function getVenuesByCity($city)
-    {
-        $stmt = $this->db->prepare(
-            "SELECT venue_id, name, description, price_per_hour, image_url, capacity, rating, address, phone 
-             FROM venues 
-             WHERE city = ? AND available = 1 
-             ORDER BY rating DESC, name ASC"
-        );
-        $stmt->bind_param("s", $city);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $venues = [];
-        while ($row = $result->fetch_assoc()) {
-            $venues[] = $row;
-        }
-        return $venues;
-    }
-
-    /**
-     * Get venue by ID
-     */
-    public function getVenueById($venue_id)
-    {
-        $stmt = $this->db->prepare("SELECT * FROM venues WHERE venue_id = ? AND available = 1 LIMIT 1");
-        $stmt->bind_param("i", $venue_id);
-        $stmt->execute();
-        return $stmt->get_result()->fetch_assoc();
-    }
-
-    /**
-     * Get all venues
+     * Get all active venues
      */
     public function getAllVenues()
     {
-        $stmt = $this->db->prepare("SELECT * FROM venues WHERE available = 1 ORDER BY city, name");
+        $stmt = $this->db->prepare("SELECT * FROM venues WHERE is_active = 1 ORDER BY name ASC");
         $stmt->execute();
         $result = $stmt->get_result();
         $venues = [];
         while ($row = $result->fetch_assoc()) {
-            $venues[] = $row;
+            $venues[] = $this->formatVenueRow($row);
         }
         return $venues;
+    }
+
+    /**
+     * Get single venue by ID
+     */
+    public function getVenueById($venue_id)
+    {
+        $stmt = $this->db->prepare("SELECT * FROM venues WHERE venue_id = ? AND is_active = 1 LIMIT 1");
+        $stmt->bind_param("i", $venue_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        return $row ? $this->formatVenueRow($row) : null;
+    }
+
+    /**
+     * Format a venue row to match JS expectations
+     */
+    private function formatVenueRow($row)
+    {
+        return [
+            'venue_id'       => $row['venue_id'],
+            'name'           => $row['name'],
+            'description'    => $row['description'] ?? '',
+            'cost_per_hour'  => isset($row['cost_per_hour']) ? floatval($row['cost_per_hour']) : 0,
+            'address'        => $row['address'] ?? '',
+            'latitude'       => isset($row['latitude']) ? floatval($row['latitude']) : null,
+            'longitude'      => isset($row['longitude']) ? floatval($row['longitude']) : null,
+            'image_urls'     => isset($row['image_urls']) ? json_decode($row['image_urls'], true) ?? [] : [],
+            'amenities'      => isset($row['amenities']) ? json_decode($row['amenities'], true) ?? [] : [],
+            'rating'         => isset($row['rating']) ? floatval($row['rating']) : 0.0,
+            'total_reviews'  => isset($row['total_reviews']) ? intval($row['total_reviews']) : 0,
+            'phone'          => $row['phone'] ?? '',
+            'email'          => $row['email'] ?? ''
+        ];
     }
 }
