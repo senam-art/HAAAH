@@ -1,181 +1,71 @@
-// Global state
 let map;
 let allVenues = [];
 let currentVenueIndex = 0;
-let selectedVenue = null;
+window.selectedVenue = null; 
 let venueMarker = null;
-let userMarker = null;
 
-// Initialize map and venue picker
+document.addEventListener('DOMContentLoaded', () => { if (document.getElementById('venue-map')) initVenuePicker(); });
+
 function initVenuePicker() {
-    if (typeof google === 'undefined' || !google.maps) {
-        console.error('Google Maps API not loaded.');
-        document.getElementById('venue-card-container').innerHTML =
-            '<p class="text-red-400 text-center py-8">Google Maps failed to load. Please check your API key.</p>';
-        return;
-    }
-
-    const defaultLatLng = { lat: 5.6037, lng: -0.1870 }; // Accra
-    map = new google.maps.Map(document.getElementById('venue-map'), {
-        center: defaultLatLng,
-        zoom: 13,
-        disableDefaultUI: true,
-        zoomControl: true,
-        gestureHandling: 'greedy'
-    });
-
-    // Show user's current location
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            pos => {
-                const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                userMarker = new google.maps.Marker({
-                    position: userPos,
-                    map,
-                    title: 'Your Location',
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 8,
-                        fillColor: '#4285F4',
-                        fillOpacity: 1,
-                        strokeWeight: 2,
-                        strokeColor: 'white'
-                    }
-                });
-            },
-            err => console.warn('Geolocation failed:', err)
-        );
-    }
-
-    fetchAllVenues();
+    if (!window.google || !google.maps) { showVenueError('Google Maps failed to load.'); return; }
+    const accra = { lat: 5.6037, lng: -0.1870 };
+    map = new google.maps.Map(document.getElementById('venue-map'), { center: accra, zoom: 13, disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy' });
+    fetchVenues();
 }
 
-// Fetch all venues
-function fetchAllVenues() {
-    fetch('../actions/get_venues_action.php?action=all')
-        .then(res => res.json())
-        .then(data => {
-            const venues = data?.data?.data; // Handle nested structure
-            if (!Array.isArray(venues) || !venues.length) {
-                throw new Error(data?.data?.message || 'No venues returned');
-            }
-            allVenues = venues;
-            currentVenueIndex = 0;
-            displayVenue();
-        })
-        .catch(err => {
-            console.error('Fetch error:', err);
-            document.getElementById('venue-card-container').innerHTML =
-                '<p class="text-red-400 text-center py-8">Failed to load venues. Please try again.</p>';
-        });
+function fetchVenues() {
+    fetch('../actions/get_venues_action.php?action=all').then(res => res.json()).then(res => {
+        allVenues = res?.data?.data || [];
+        if (!allVenues.length) throw new Error('No venues');
+        renderVenue();
+    }).catch(() => showVenueError('Failed to load venues.'));
 }
 
-// Display current venue card
-function displayVenue() {
-    if (!allVenues.length) {
-        document.getElementById('venue-card-container').innerHTML =
-            '<p class="text-gray-400 text-center py-8">No venues available.</p>';
-        return;
-    }
+function renderVenue() {
+    const container = document.getElementById('venue-card-container');
+    if (!allVenues.length) return;
 
-    const venue = allVenues[currentVenueIndex];
-    selectedVenue = venue;
+    window.selectedVenue = allVenues[currentVenueIndex];
+    const venue = window.selectedVenue;
+    
+    // Button State Logic
+    const selectedId = document.getElementById('selected_venue_id')?.value;
+    const isSelected = (selectedId && selectedId == venue.venue_id);
 
-    const imageUrl = venue.image_urls?.[0] ?? 'https://via.placeholder.com/400x250?text=No+Image';
-    const amenitiesHtml = venue.amenities?.length
-        ? venue.amenities.map(a => `<span class="text-xs bg-brand-accent/20 text-brand-accent px-2 py-1 rounded">${a}</span>`).join(' ')
-        : '<span class="text-xs text-gray-500">No amenities listed</span>';
+    const btnText = isSelected ? 'Venue Selected ✓' : 'Select This Venue';
+    const btnClass = isSelected 
+        ? 'w-full py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg shadow-green-900/20 transform scale-105 transition-all' 
+        : 'w-full py-3 bg-brand-accent text-black font-bold rounded-lg'; 
 
-    const html = `
+    const image = venue.image_urls?.[0] ?? 'https://via.placeholder.com/400x250';
+    const amenities = venue.amenities?.length ? venue.amenities.map(a => `<span class="text-xs px-2 py-1 rounded bg-brand-accent/20 text-brand-accent">${a}</span>`).join(' ') : '';
+
+    container.innerHTML = `
         <div class="space-y-4">
-            <div class="relative rounded-xl overflow-hidden h-48 bg-brand-dark border border-white/10">
-                <img src="${imageUrl}" alt="${venue.name}" class="w-full h-full object-cover">
-                <div class="absolute top-3 right-3 bg-black/70 px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold">
-                    <i data-lucide="star" size="12" class="text-yellow-400"></i>
-                    <span>${venue.rating || 'N/A'}</span>
-                    <span class="text-gray-500">(${venue.total_reviews || 0})</span>
-                </div>
-            </div>
-
-            <div>
-                <h3 class="text-lg font-bold mb-1">${venue.name}</h3>
-                <p class="text-xs text-gray-400 mb-2">
-                    <i data-lucide="map-pin" size="12"></i>
-                    ${venue.address}
-                </p>
-                <p class="text-sm text-gray-300 mb-3">${venue.description || 'No description available.'}</p>
-                <div class="flex gap-2 mb-4 flex-wrap">${amenitiesHtml}</div>
-                <div class="flex justify-between items-center bg-brand-accent/10 border border-brand-accent/20 rounded-lg p-3 mb-4">
-                    <span class="text-sm font-bold">Cost per hour:</span>
-                    <span class="text-xl font-black text-brand-accent">GHS ${parseFloat(venue.cost_per_hour).toFixed(2)}</span>
-                </div>
-            </div>
-
-            <div class="flex justify-between items-center mb-4">
-                <button onclick="previousVenue()" class="px-4 py-2 bg-white/5 border border-white/10 rounded-lg">‹</button>
-                <span class="text-xs text-gray-400">${currentVenueIndex + 1} / ${allVenues.length}</span>
-                <button onclick="nextVenue()" class="px-4 py-2 bg-white/5 border border-white/10 rounded-lg">›</button>
-            </div>
-
-            <button onclick="selectVenue()" class="w-full py-3 bg-brand-accent text-black font-bold rounded-lg">
-                Select This Venue
-            </button>
+            <img src="${image}" class="rounded-xl h-48 w-full object-cover"/>
+            <div><h3 class="text-lg font-bold">${venue.name}</h3><p class="text-xs text-gray-400">${venue.address}</p></div>
+            <div class="flex flex-wrap gap-2">${amenities}</div>
+            <div class="flex justify-between items-center p-3 rounded-lg bg-brand-accent/10 border border-brand-accent/20"><span class="text-sm font-bold">Cost / hour</span><span class="text-brand-accent font-black text-lg">GHS ${Number(venue.cost_per_hour).toFixed(2)}</span></div>
+            <div class="flex justify-between items-center"><button id="prevVenue" class="px-4 py-2 bg-white/5 rounded-lg">‹</button><span class="text-xs text-gray-400">${currentVenueIndex + 1} / ${allVenues.length}</span><button id="nextVenue" class="px-4 py-2 bg-white/5 rounded-lg">›</button></div>
+            <button type="button" id="pickVenueBtn" class="${btnClass}">${btnText}</button>
         </div>
     `;
-
-    document.getElementById('venue-card-container').innerHTML = html;
-    lucide.createIcons();
-
-    updateMapPin(venue);
+    bindVenueControls();
+    updateMap(venue);
 }
 
-// Map marker update
-function updateMapPin(venue) {
-    if (!venue.latitude || !venue.longitude) return;
-
-    const pos = { lat: parseFloat(venue.latitude), lng: parseFloat(venue.longitude) };
-
-    if (venueMarker) {
-        venueMarker.setPosition(pos);
-    } else {
-        venueMarker = new google.maps.Marker({ map, position: pos, title: venue.name });
-    }
-
-    map.setCenter(pos);
-    map.setZoom(15);
+function bindVenueControls() {
+    document.getElementById('prevVenue').onclick = () => { currentVenueIndex = (currentVenueIndex - 1 + allVenues.length) % allVenues.length; renderVenue(); };
+    document.getElementById('nextVenue').onclick = () => { currentVenueIndex = (currentVenueIndex + 1) % allVenues.length; renderVenue(); };
+    document.getElementById('pickVenueBtn').onclick = () => { if (window.applySelectedVenue) window.applySelectedVenue(); };
 }
 
-// Navigation
-function nextVenue() {
-    if (!allVenues.length) return;
-    currentVenueIndex = (currentVenueIndex + 1) % allVenues.length;
-    displayVenue();
+function updateMap(venue) {
+    if (!venue.latitude) return;
+    const pos = { lat: Number(venue.latitude), lng: Number(venue.longitude) };
+    if (!venueMarker) venueMarker = new google.maps.Marker({ map, position: pos, title: venue.name });
+    else venueMarker.setPosition(pos);
+    map.panTo(pos); map.setZoom(15);
 }
 
-function previousVenue() {
-    if (!allVenues.length) return;
-    currentVenueIndex = (currentVenueIndex - 1 + allVenues.length) % allVenues.length;
-    displayVenue();
-}
-
-// Select venue
-function selectVenue() {
-    if (!selectedVenue) return;
-
-    ['id', 'name', 'cost', 'address', 'lat', 'lng'].forEach(field => {
-        const el = document.getElementById(`selected_venue_${field}`);
-        if (el) el.value = selectedVenue[`venue_${field}`] ?? selectedVenue[field];
-    });
-
-    const displayEl = document.getElementById('selected-venue-display');
-    if (displayEl) {
-        displayEl.innerHTML = `<p class="text-sm"><strong>${selectedVenue.name}</strong> - GHS ${parseFloat(selectedVenue.cost_per_hour).toFixed(2)}/hr</p>`;
-    }
-
-    alert(`Selected: ${selectedVenue.name}`);
-}
-
-// Init on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('venue-map')) initVenuePicker();
-});
+function showVenueError(msg) { document.getElementById('venue-card-container').innerHTML = `<p class="text-red-400 text-center py-8">${msg}</p>`; }
