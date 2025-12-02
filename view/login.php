@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/../settings/core.php';
 
-hasLoggedIn();
-
+// This function check is now valid thanks to the updated core.php
+hasLoggedIn(); 
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -74,22 +74,6 @@ hasLoggedIn();
                     Sign In
                 </button>
             </form>
-
-            <!-- <div class="relative my-8">
-                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/10"></div></div>
-                <div class="relative flex justify-center text-xs uppercase"><span class="bg-brand-card px-2 text-gray-500">Or continue with</span></div>
-            </div> -->
-
-            <!-- <div class="grid grid-cols-2 gap-4">
-                <button class="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-colors">
-                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5">
-                    <span class="text-sm font-medium">Google</span>
-                </button>
-                <button class="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-colors">
-                    <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" class="w-5 h-5">
-                    <span class="text-sm font-medium">Facebook</span>
-                </button>
-            </div> -->
 
             <p class="mt-8 text-center text-sm text-gray-400">
                 Don't have an account? 

@@ -10,10 +10,11 @@ if (!isset($_SESSION['user_id'])) {
 // 2. Include Logic
 require_once __DIR__ . '/../controllers/payment_controller.php';
 
-// ... rest of your checkout code ...
+// 3. Get Input
 $event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
 $type = isset($_GET['type']) ? $_GET['type'] : 'join_game';
 
+// 4. Get Processed Data from Controller
 $details = get_checkout_details_ctr($event_id, $type);
 
 if (!$details) {
@@ -22,7 +23,32 @@ if (!$details) {
 }
 
 $event = $details['event'];
-$user_email = $_SESSION['user_email'] ?? 'user@haaah.com';
+$user_email = isset($_SESSION['user_email']) ? $_SESSION['user_email'] : 'guest@haaah.com';
+$user_id = $_SESSION['user_id'];
+
+// --- NEW: PREVENT DOUBLE PAYMENTS ---
+if ($type === 'organizer_fee') {
+    // If the event is NOT in 'awaiting_payment' status, it means it's already published/pending/confirmed
+    if ($event['status'] !== 'awaiting_payment') {
+        header("Location: event-profile.php?id=$event_id&msg=already_published");
+        exit();
+    }
+} else {
+    // Check if player is already in the squad list
+    // We reuse the existing controller function to fetch players
+    $current_players = get_event_players_ctr($event_id);
+    
+    if (is_array($current_players)) {
+        foreach ($current_players as $player) {
+            if (isset($player['id']) && $player['id'] == $user_id) {
+                // User already booked this event
+                header("Location: event-profile.php?id=$event_id&msg=already_joined");
+                exit();
+            }
+        }
+    }
+}
+// ------------------------------------
 ?>
 
 <!DOCTYPE html>
@@ -33,6 +59,7 @@ $user_email = $_SESSION['user_email'] ?? 'user@haaah.com';
     <title><?php echo $details['page_title']; ?> - Haaah Sports</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PAYSTACK INLINE JS -->
     <script src="https://js.paystack.co/v1/inline.js"></script>
     <script>
         tailwind.config = {
@@ -59,14 +86,18 @@ $user_email = $_SESSION['user_email'] ?? 'user@haaah.com';
 
     <div class="max-w-4xl mx-auto px-4 lg:px-8 py-12">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            
+            <!-- LEFT: Order Summary -->
             <div class="space-y-6">
                 <div>
                     <h2 class="text-2xl font-bold mb-2"><?php echo $details['page_title']; ?></h2>
                     <p class="text-gray-400 text-sm">Review your details before paying.</p>
                 </div>
+
                 <div class="bg-brand-card rounded-2xl p-6 border border-white/5 relative overflow-hidden">
                     <div class="absolute top-0 right-0 p-20 bg-brand-accent/5 blur-[60px] rounded-full"></div>
                     <div class="relative z-10">
+                        <!-- Event Info -->
                         <div class="flex items-start justify-between mb-6">
                             <div>
                                 <h3 class="font-bold text-lg text-white"><?php echo htmlspecialchars($event['title']); ?></h3>
@@ -78,7 +109,10 @@ $user_email = $_SESSION['user_email'] ?? 'user@haaah.com';
                                 <i data-lucide="<?php echo ($type === 'organizer_fee') ? 'shield' : 'ticket'; ?>" class="text-brand-accent"></i>
                             </div>
                         </div>
+
                         <div class="border-t border-white/10 my-4"></div>
+
+                        <!-- Item Details -->
                         <div class="flex justify-between items-center mb-2">
                             <div>
                                 <div class="font-bold text-sm text-white"><?php echo $details['item_name']; ?></div>
@@ -86,17 +120,27 @@ $user_email = $_SESSION['user_email'] ?? 'user@haaah.com';
                             </div>
                             <div class="font-mono font-bold">GHS <?php echo number_format($details['amount_to_pay'], 2); ?></div>
                         </div>
+
                         <div class="border-t border-white/10 my-4"></div>
+
                         <div class="flex justify-between items-center">
                             <span class="text-gray-400">Total Due</span>
                             <span class="text-2xl font-black text-brand-accent">GHS <?php echo number_format($details['amount_to_pay'], 2); ?></span>
                         </div>
                     </div>
                 </div>
+                
+                <div class="flex items-center justify-center gap-4 opacity-50">
+                    <span class="text-xs font-bold text-gray-500">SECURED BY</span>
+                    <span class="font-black text-lg tracking-tighter">Paystack</span>
+                </div>
             </div>
 
+            <!-- RIGHT: Payment Method -->
             <div class="bg-brand-card rounded-2xl p-8 border border-white/5 h-fit">
                 <form id="paymentForm" onsubmit="handlePayment(event)">
+                    
+                    <!-- DATA CARRIERS: Hidden inputs for JS to read -->
                     <input type="hidden" name="amount" value="<?php echo $details['amount_to_pay']; ?>">
                     <input type="hidden" name="email" value="<?php echo htmlspecialchars($user_email); ?>">
                     <input type="hidden" name="event_id" value="<?php echo $event_id; ?>">
@@ -104,6 +148,7 @@ $user_email = $_SESSION['user_email'] ?? 'user@haaah.com';
                     <input type="hidden" name="tx_ref" value="<?php echo $details['tx_ref']; ?>">
 
                     <h3 class="font-bold mb-6">Select Payment Method</h3>
+                    
                     <div class="space-y-3 mb-8">
                         <label class="flex items-center justify-between p-4 bg-brand-accent/10 border border-brand-accent rounded-xl cursor-pointer transition-all">
                             <div class="flex items-center gap-3">
@@ -117,16 +162,27 @@ $user_email = $_SESSION['user_email'] ?? 'user@haaah.com';
                         </label>
                     </div>
 
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
+                            <input type="email" value="<?php echo htmlspecialchars($user_email); ?>" readonly class="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-gray-400 focus:outline-none cursor-not-allowed">
+                        </div>
+                    </div>
+
                     <button type="submit" id="payBtn" class="w-full mt-8 py-4 bg-brand-accent hover:bg-[#2fe080] text-black font-bold rounded-xl transition-transform hover:scale-[1.02] shadow-lg shadow-brand-accent/20 flex items-center justify-center gap-2">
                         <?php echo $details['button_text']; ?>
                     </button>
+                    
                     <p class="text-center text-[10px] text-gray-500 mt-4 flex items-center justify-center gap-1">
-                        <i data-lucide="lock" size="10"></i> Secured by Paystack
+                        <i data-lucide="lock" size="10"></i> Transactions are encrypted and secure.
                     </p>
                 </form>
             </div>
+
         </div>
     </div>
+
+    <!-- External JS Logic -->
     <script src="../js/checkout.js"></script>
 </body>
 </html>

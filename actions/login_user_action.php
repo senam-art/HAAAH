@@ -1,36 +1,25 @@
 <?php
+
 require_once __DIR__ . '/../settings/core.php';
 require_once PROJECT_ROOT . '/controllers/user_controller.php';
 
+// Force JSON response
 header('Content-Type: application/json');
 
-// Accept POST only
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
-    exit;
+// 1. Capture Data
+$username = $_POST['username'] ?? $_POST['email'] ?? '';
+$password = $_POST['password'] ?? '';
+
+if (empty($username) || empty($password)) {
+    echo json_encode(['success' => false, 'message' => 'Missing inputs']);
+    exit();
 }
 
-// Get POST data
-$data = $_POST;
-if (empty($data)) {
-    // Try raw JSON
-    $raw = file_get_contents('php://input');
-    $data = json_decode($raw, true);
-}
+// 2. Call Controller
+$controller = new UserController();
+$result = $controller->login_user_ctr($username, $password);
 
-// Sanitize
-$data = array_map('trim', $data);
-
-// Delegate login logic to controller (will set session)
-$userController = new UserController();
-$result = $userController->login_user($data);
-
-// Log unexpected result structure for debugging
-if (!is_array($result) || !array_key_exists('success', $result)) {
-    error_log('[login_user_action] Unexpected login result: ' . var_export($result, true));
-    echo json_encode(['success' => false, 'message' => 'Unexpected server response.']);
-    exit;
-}
-
+// 3. Return Result
 echo json_encode($result);
-exit;
+exit();
+?>

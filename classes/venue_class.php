@@ -1,61 +1,54 @@
 <?php
-
 require_once __DIR__ . '/../settings/core.php';
 require_once PROJECT_ROOT . '/settings/db_class.php';
 
 class Venue extends db_connection
 {
-    public function __construct()
+    public function __construct() { parent::db_connect(); }
+
+    public function get_all_venues()
     {
-        parent::db_connect();
+        $sql = "SELECT * FROM venues WHERE is_active = 1"; 
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) return $this->db_fetch_all($sql);
+        $stmt->execute();
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
 
     /**
-     * Get all active venues
+     * Get Booked Slots (Smart Duration Handling)
      */
-    public function getAllVenues()
+    public function get_booked_slots($venue_id, $date)
     {
-        $stmt = $this->db->prepare("SELECT * FROM venues WHERE is_active = 1 ORDER BY name ASC");
+        // Select Start Time AND Duration
+        $sql = "SELECT event_time, duration 
+                FROM events 
+                WHERE venue_id = ? 
+                AND event_date = ? 
+                AND status != 'cancelled'";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param("is", $venue_id, $date);
         $stmt->execute();
+        
         $result = $stmt->get_result();
-        $venues = [];
+        $blocked_hours = [];
+        
         while ($row = $result->fetch_assoc()) {
-            $venues[] = $this->formatVenueRow($row);
+            $start_hour = intval(substr($row['event_time'], 0, 2)); // Extract HH
+            $duration = intval($row['duration']);
+            
+            // Loop through the duration to block subsequent hours
+            for ($i = 0; $i < $duration; $i++) {
+                $blocked_hour = $start_hour + $i;
+                $time_str = sprintf("%02d:00", $blocked_hour);
+                if (!in_array($time_str, $blocked_hours)) {
+                    $blocked_hours[] = $time_str;
+                }
+            }
         }
-        return $venues;
-    }
-
-    /**
-     * Get single venue by ID
-     */
-    public function getVenueById($venue_id)
-    {
-        $stmt = $this->db->prepare("SELECT * FROM venues WHERE venue_id = ? AND is_active = 1 LIMIT 1");
-        $stmt->bind_param("i", $venue_id);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
-        return $row ? $this->formatVenueRow($row) : null;
-    }
-
-    /**
-     * Format a venue row to match JS expectations
-     */
-    private function formatVenueRow($row)
-    {
-        return [
-            'venue_id'       => $row['venue_id'],
-            'name'           => $row['name'],
-            'description'    => $row['description'] ?? '',
-            'cost_per_hour'  => isset($row['cost_per_hour']) ? floatval($row['cost_per_hour']) : 0,
-            'address'        => $row['address'] ?? '',
-            'latitude'       => isset($row['latitude']) ? floatval($row['latitude']) : null,
-            'longitude'      => isset($row['longitude']) ? floatval($row['longitude']) : null,
-            'image_urls'     => isset($row['image_urls']) ? json_decode($row['image_urls'], true) ?? [] : [],
-            'amenities'      => isset($row['amenities']) ? json_decode($row['amenities'], true) ?? [] : [],
-            'rating'         => isset($row['rating']) ? floatval($row['rating']) : 0.0,
-            'total_reviews'  => isset($row['total_reviews']) ? intval($row['total_reviews']) : 0,
-            'phone'          => $row['phone'] ?? '',
-            'email'          => $row['email'] ?? ''
-        ];
+        
+        return $blocked_hours;
     }
 }
+?>

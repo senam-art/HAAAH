@@ -9,7 +9,7 @@ define('PAYSTACK_SECRET_KEY', 'sk_test_319a4bce5fb94ebdf86fdb8a81a216683008e1d7'
 // ------------------------------
 
 if (!isset($_GET['reference']) || !isset($_GET['event_id']) || !isset($_GET['type'])) {
-    header("Location: ../view/homepage.php?error=missing_payment_details");
+    header("Location: ../view/payment_failed.php?msg=Missing payment details");
     exit();
 }
 
@@ -39,7 +39,7 @@ $err = curl_error($curl);
 curl_close($curl);
 
 if ($err) {
-    header("Location: ../view/event-profile.php?id=$event_id&error=paystack_api_fail");
+    header("Location: ../view/payment_failed.php?event_id=$event_id&msg=Paystack Connection Error");
     exit();
 }
 
@@ -47,7 +47,8 @@ $result = json_decode($response, true);
 
 // 2. Validate Payment
 if (!isset($result['data']) || $result['data']['status'] !== 'success') {
-    header("Location: ../view/event-profile.php?id=$event_id&error=payment_failed");
+    $gateway_msg = isset($result['message']) ? $result['message'] : 'Transaction not successful';
+    header("Location: ../view/payment_failed.php?event_id=$event_id&msg=" . urlencode($gateway_msg));
     exit();
 }
 
@@ -61,6 +62,9 @@ $booking_id = null;
 try {
     // Start Transaction
     $conn = new mysqli(SERVER, USERNAME, PASSWD, DATABASE);
+    if ($conn->connect_error) {
+        throw new Exception("Database Connection Failed: " . $conn->connect_error);
+    }
     $conn->begin_transaction();
 
     // A. Record Player Booking (if applicable)
@@ -73,12 +77,19 @@ try {
     }
 
     // B. Record the Payment
+    // Note: booking_id can be null for organizer fees
     $payment_sql = "INSERT INTO payments (user_id, event_id, booking_id, amount, reference, status, currency) 
                     VALUES (?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($payment_sql);
     $tx_status = 'success';
-    $stmt->bind_param("iidssis", $user_id, $event_id, $booking_id, $db_amount, $tx_ref, $tx_status, $tx_currency);
-    $stmt->execute();
+    
+    // FIX: Changed types from "iidssis" to "iiidsss"
+    $stmt->bind_param("iiidsss", $user_id, $event_id, $booking_id, $db_amount, $tx_ref, $tx_status, $tx_currency);
+    
+    if (!$stmt->execute()) {
+        throw new Exception("Payment Insert Failed: " . $stmt->error);
+    }
+    $payment_id = $conn->insert_id; // Capture the ID for the invoice
 
     // C. Update Event State
     $msg = "";
@@ -101,14 +112,18 @@ try {
     $conn->commit();
     $conn->close();
 
-    // 4. Redirect to NEW Success Page
-    header("Location: ../view/payment_success.php?event_id=$event_id&msg=$msg");
+    // 4. Redirect to Invoice Page
+    header("Location: ../view/payment_success.php?payment_id=$payment_id");
     exit();
 
 } catch (Exception $e) {
-    if (isset($conn)) $conn->rollback();
+    if (isset($conn) && $conn instanceof mysqli) {
+        $conn->rollback();
+        $conn->close();
+    }
     error_log("Payment verification failed: " . $e->getMessage());
-    header("Location: ../view/event-profile.php?id=$event_id&error=internal_server_error");
+    // Redirect to the new failed page with a generic error or specific debug message
+    header("Location: ../view/payment_failed.php?event_id=$event_id&msg=Internal System Error");
     exit();
 }
 ?>

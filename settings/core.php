@@ -1,84 +1,59 @@
 <?php
+// settings/core.php
 
-if (!defined('PROJECT_ROOT')) {
-    define('PROJECT_ROOT', dirname(__DIR__));
-}
-
-// Start session only once
+// 1. Start Session (Safe Check)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-//for header redirection
-ob_start();
-
-//funtion to check for login
-/**
- * Checks if a user is logged in
- * Returns true if a session user exists, false otherwise
- */
-function isLoggedIn() {
-    return isset($_SESSION['user_id']); // use user_id since it’s the main unique identifier
+// 2. Define Root Path (Required for classes to find files)
+if (!defined('PROJECT_ROOT')) {
+    define('PROJECT_ROOT', dirname(__DIR__));
 }
 
+// --- HELPER FUNCTIONS ---
 
 /**
- * Get the logged-in user's ID
- * Returns the user ID or null if not set
+ * Check if user is logged in.
+ * If not, redirect to login page.
  */
-function getUserId() {
-    return isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
-}
-
-
-
-//function to check for role (admin, customer, etc)
-/**
- * Checks if the logged-in user has admin privileges
- * Returns true if user_role == 2 (admin), false otherwise
- */
-function isAdmin() {
-    return (isset($_SESSION['user_role']) && $_SESSION['user_role'] == 2);
-}
-
-
-/**
- * Get the logged-in user's name
- * Returns the name or null if not set
- */
-function getUserName() {
-    return isset($_SESSION['user_name']) ? $_SESSION['user_name'] : null;
-}
-
-
-
-
-/**
- * Forces redirect if user is not logged in
- */
-function requireLogin() {
-    if (!isLoggedIn()) {
-        header('Location: ' . dirname($_SERVER['PHP_SELF'], 3) . '/view/homepage.php');
-        exit;
+function check_login() {
+    if (!isset($_SESSION['user_id'])) {
+        // Remember where they wanted to go
+        if (isset($_SERVER['REQUEST_URI'])) {
+             $_SESSION['redirect_to'] = $_SERVER['REQUEST_URI'];
+        }
+        header("Location: ../view/login.php?msg=login_required");
+        exit();
     }
 }
 
+/**
+ * Check if user IS ALREADY logged in.
+ * If yes, redirect to homepage (Don't show login form).
+ * THIS WAS THE MISSING FUNCTION CAUSING THE 500 ERROR.
+ */
 function hasLoggedIn() {
-    if (isLoggedIn()) {
-        header('Location: ' . dirname($_SERVER['PHP_SELF'], 1) . '/homepage.php');
-        exit;
+    if (isset($_SESSION['user_id'])) {
+        header("Location: ../view/homepage.php");
+        exit();
     }
 }
 
 /**
- * Forces redirect if user is not admin
+ * Get current user ID safely
  */
-function requireAdmin() {
-    if (!isAdmin()) {
-        header('Location: ' . dirname($_SERVER['PHP_SELF'], 3) . '/index.php');
-        exit;
+function get_user_id() {
+    return $_SESSION['user_id'] ?? false;
+}
+
+/**
+ * Check Admin Role
+ */
+function check_admin_role() {
+    if (!isset($_SESSION['role']) || $_SESSION['role'] != 1) {
+        header("Location: ../view/homepage.php?error=unauthorized");
+        exit();
     }
 }
 ?>
-
-

@@ -1,5 +1,6 @@
 <?php
 require_once '../settings/core.php';
+require_once PROJECT_ROOT . '/controllers/user_controller.php';
 
 // 1. CAPTURE DATA FROM LANDING PAGE
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -12,9 +13,35 @@ if (!empty($search_term)) {
     if ($search_term === 'Current Location') {
         $games_header = "Open Games Near You";
     } else {
-        // e.g. "Open Games in East Legon"
         $games_header = "Open Games in " . htmlspecialchars($search_term);
     }
+}
+
+// 3. FETCH USER DATA (For Avatar/Initials)
+$initials = 'U'; // Default
+if (isset($_SESSION['user_id'])) {
+    $userController = new UserController();
+    $current_user = $userController->get_user_by_id_ctr($_SESSION['user_id']);
+    if ($current_user) {
+        $initials = strtoupper(substr($current_user['user_name'], 0, 1));
+        if (!empty($current_user['last_name'])) {
+            $initials .= strtoupper(substr($current_user['last_name'], 0, 1));
+        }
+    }
+}
+
+// 4. MODAL LOGIC
+$modal_type = isset($_GET['msg']) ? $_GET['msg'] : '';
+$show_modal = false;
+$modal_title = '';
+$modal_msg = '';
+$modal_icon = 'info'; 
+
+if ($modal_type === 'venue_submitted_for_review') {
+    $show_modal = true;
+    $modal_title = "Submission Successful!";
+    $modal_msg = "Your venue has been submitted for review. It will appear on the map within 24 hours after admin approval.";
+    $modal_icon = 'check-circle';
 }
 ?>
 <!DOCTYPE html>
@@ -49,10 +76,34 @@ if (!empty($search_term)) {
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }
-        .hidden-force { display: none !important; }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f0f13;
+            color: white;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f0f13; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+
+        /* Utility for hiding/showing based on state */
+        .hidden-force {
+            display: none !important;
+        }
+         /* Modal Animation */
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="selection:bg-brand-accent selection:text-black">
@@ -79,7 +130,7 @@ if (!empty($search_term)) {
             <a href="login.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
                 <i data-lucide="trophy" class="group-hover:text-brand-accent"></i> <span class="text-sm">Tournaments</span>
             </a>
-            <a href="venue-portal.html" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
+            <a href="venue-portal.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
                 <i data-lucide="map-pin" class="group-hover:text-brand-accent"></i> <span class="text-sm">Find Venues</span>
             </a>
         </nav>
@@ -87,9 +138,16 @@ if (!empty($search_term)) {
         <!-- USER NAVIGATION -->
         <nav id="nav-user" class="hidden-force flex-1 px-4 py-4 space-y-2 overflow-y-auto">
             <div class="px-4 text-xs font-bold text-brand-purple uppercase tracking-wider mb-2">My Account</div>
-            <a href="dashboard.html" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
+            
+            <a href="dashboard.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
                 <i data-lucide="layout-dashboard" class="text-brand-purple"></i> <span class="text-sm font-bold text-white">Dashboard</span>
             </a>
+            
+            <!-- Analytics Link -->
+            <a href="analytics.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
+                <i data-lucide="receipt" class="group-hover:text-brand-accent"></i> <span class="text-sm">Orders & Bookings</span>
+            </a>
+
             <a href="#" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
                 <i data-lucide="wallet" class="group-hover:text-brand-accent"></i> <span class="text-sm">Wallet</span>
             </a>
@@ -121,10 +179,19 @@ if (!empty($search_term)) {
 
             <!-- USER HEADER ACTIONS -->
             <div id="header-user" class="hidden-force flex items-center gap-4">
+                <!-- Orders Link -->
+                <a href="analytics.php" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-brand-card border border-white/10 rounded-full text-xs font-bold hover:border-brand-accent hover:text-brand-accent transition-colors">
+                    <i data-lucide="receipt" size="14"></i> Orders
+                </a>
+
                 <a href="create-event.php" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-brand-accent text-black font-bold rounded-full text-sm hover:bg-[#2fe080]">
                     <i data-lucide="plus" size="16"></i> Create
                 </a>
-                <a href="profile.html" class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm border-2 border-brand-card hover:border-brand-accent transition-colors">JM</a>
+                
+                <!-- Dynamic Profile Link -->
+                <a href="profile.php" class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm border-2 border-brand-card hover:border-brand-accent transition-colors text-white">
+                    <?php echo $initials; ?>
+                </a>
             </div>
         </header>
 
@@ -138,7 +205,7 @@ if (!empty($search_term)) {
                 </div>
 
                 <div class="relative z-10 px-6 lg:px-12 py-8 w-full">
-                    <h2 class="text-3xl lg:text-4xl font-black mb-4 leading-tight">
+                    <h2 class="text-4xl lg:text-5xl font-black mb-4 leading-tight">
                         Find Your <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-[#00c6ff]">Squad.</span>
                     </h2>
                     
@@ -175,7 +242,6 @@ if (!empty($search_term)) {
 
                     <!-- Games Container (JS loads content here) -->
                     <div id="games-container" class="space-y-4">
-                        <!-- Loading State (JS will replace this) -->
                         <div class="p-12 text-center text-gray-500">Loading games...</div>
                     </div>
                 </div>
@@ -197,10 +263,10 @@ if (!empty($search_term)) {
                     <div class="bg-[#16161c] border border-white/5 rounded-xl p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold">Popular Pitches</h3>
-                            <a href="venue-portal.html" class="text-xs text-brand-accent hover:underline">List yours</a>
+                            <a href="venue-portal.php" class="text-xs text-brand-accent hover:underline">List yours</a>
                         </div>
                         <div class="space-y-4">
-                            <!-- Example Static Venues (Ideally fetch from DB) -->
+                            <!-- Example Static Venues -->
                             <div class="flex items-center gap-4">
                                 <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-gray-500 font-bold text-xs">01</div>
                                 <div class="flex-1">
@@ -224,7 +290,7 @@ if (!empty($search_term)) {
             </div>
 
             <!-- NEWS SECTION -->
-            <div class="pt-8 border-t border-white/5">
+            <div class="pt-8 border-t border-white/5 lg:col-span-3">
                 <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
                     <i data-lucide="newspaper" class="text-brand-accent"></i> Trending in Community
                 </h3>
@@ -276,8 +342,43 @@ if (!empty($search_term)) {
 
         </div>
 
+        <!-- Footer -->
+        <footer class="border-t border-white/5 mt-12 bg-[#0a0a0d] py-12 px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <h5 class="font-bold text-white mb-4">Platform</h5>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-brand-accent">Find Matches</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-white/5 text-xs text-gray-600">
+                <p>&copy; 2025 Haaah Sports Ghana.</p>
+            </div>
+        </footer>
+
     </main>
 
+    <!-- NOTIFICATION MODAL -->
+    <?php if($show_modal): ?>
+    <div id="notification-modal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-[#1a1a23] border border-white/10 rounded-2xl p-8 max-w-sm w-full shadow-2xl transform transition-all scale-100">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="check-circle" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2"><?php echo $modal_title; ?></h3>
+                <p class="text-gray-400 text-sm mb-6"><?php echo $modal_msg; ?></p>
+                <button onclick="closeModal()" class="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors border border-white/5">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+
+    <!-- Scripts -->
     <script>
         lucide.createIcons();
 
@@ -292,7 +393,7 @@ if (!empty($search_term)) {
         }
 
         function updateUI() {
-            const isLoggedIn = <?php echo json_encode(isset($_SESSION['user_id'])); ?>; // Simple session check
+            const isLoggedIn = <?php echo json_encode(isset($_SESSION['user_id'])); ?>; 
             const guestElements = ['nav-guest', 'header-guest', 'widget-guest-login'];
             const userElements = ['nav-user', 'footer-user', 'header-user'];
 
@@ -322,9 +423,53 @@ if (!empty($search_term)) {
                 header.classList.add('bg-transparent');
             }
         });
-    </script>
 
-    <!-- 3. LOAD GAMES SCRIPT -->
-    <script src="../js/find_game.js"></script>
+        // MODAL LOGIC
+        function closeModal() {
+            const modal = document.getElementById('notification-modal');
+            if(modal) {
+                modal.style.opacity = '0';
+                modal.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => modal.remove(), 300); 
+            }
+            const url = new URL(window.location);
+            url.searchParams.delete('msg');
+            window.history.replaceState({}, '', url);
+        }
+
+        // 3. LOAD GAMES SCRIPT
+        function loadGamesScript() {
+             // Remove existing script if any to prevent duplicates/errors
+             const oldScript = document.getElementById('find-game-script');
+             if(oldScript) oldScript.remove();
+
+             const script = document.createElement('script');
+             script.id = 'find-game-script';
+             script.src = '../js/find_game.js';
+             document.body.appendChild(script);
+        }
+
+        // Initial Load
+        if (<?php echo json_encode(!$show_modal); ?>) {
+             loadGamesScript();
+        }
+
+        // Fix for "Stuck Loading" on Back Navigation (BFCache)
+        window.addEventListener('pageshow', function(event) {
+            // Check if page is loaded from cache (bfcache)
+            const historyTraversal = event.persisted || 
+                                     (typeof window.performance != "undefined" && 
+                                      window.performance.navigation.type === 2);
+            
+            // Or check if the container still says "Loading..."
+            const container = document.getElementById('games-container');
+            const isStuck = container && container.innerText.includes('Loading games');
+
+            if (historyTraversal || isStuck) {
+                // Force a full reload to re-trigger the JS logic fresh
+                window.location.reload();
+            }
+        });
+    </script>
 </body>
 </html>

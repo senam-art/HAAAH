@@ -17,9 +17,6 @@ $players = get_event_players_ctr($event_id);
 
 // 4. Check if event exists
 if (!$event) {
-    // Redirect or show simple error
-    // header("Location: index.php"); 
-    // exit();
     die("Event not found.");
 }
 
@@ -39,6 +36,7 @@ $is_confirmed = ($status === 'confirmed');
 
 $organizer_username = $event['organizer_username'] ?? 'Unknown';
 $organizer_name = '@' . $organizer_username; 
+$organizer_id = intval($event['organizer_id'] ?? 0);
 
 // Calculate Fees
 $entry_fee = floatval($event['cost_per_player'] ?? 0);
@@ -62,13 +60,59 @@ $event_format = $event['format'] ?? 'Sport';
 
 // Check Membership (Is current user already joined?)
 $is_joined = false;
-if (isset($_SESSION['user_id']) && is_array($players)) {
+$organizer_is_playing = false;
+$is_current_user_organizer = (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $organizer_id);
+
+if (is_array($players)) {
     foreach ($players as $p) {
-        if (isset($p['id']) && $p['id'] == $_SESSION['user_id']) {
+        $pid = intval($p['id'] ?? 0);
+        
+        if (isset($_SESSION['user_id']) && $pid == $_SESSION['user_id']) {
             $is_joined = true;
-            break;
+        }
+        if ($pid == $organizer_id) {
+            $organizer_is_playing = true;
         }
     }
+}
+
+// --- MODAL LOGIC ---
+$modal_type = isset($_GET['msg']) ? $_GET['msg'] : '';
+$show_modal = false;
+$modal_title = '';
+$modal_msg = '';
+$modal_icon = 'info'; 
+
+if ($modal_type === 'already_joined') {
+    $show_modal = true;
+    $modal_title = "You're already in!";
+    $modal_msg = "You are already on the squad list for this game. See you on the pitch!";
+    $modal_icon = 'check-circle';
+} elseif ($modal_type === 'already_published') {
+    $show_modal = true;
+    $modal_title = "Already Published";
+    $modal_msg = "This event is already live. No need to pay the commitment fee again.";
+    $modal_icon = 'check-circle';
+} elseif ($modal_type === 'joined') {
+    $show_modal = true;
+    $modal_title = "Welcome to the Squad!";
+    $modal_msg = "Payment successful. You have secured your spot.";
+    $modal_icon = 'check-circle';
+} elseif ($modal_type === 'published') {
+    $show_modal = true;
+    $modal_title = "Event Published!";
+    $modal_msg = "Your game is now live. Share the link to get players!";
+    $modal_icon = 'check-circle';
+} elseif ($modal_type === 'host_joined') {
+    $show_modal = true;
+    $modal_title = "You're Playing!";
+    $modal_msg = "You have successfully added yourself to the roster.";
+    $modal_icon = 'check-circle';
+} elseif ($modal_type === 'host_left') {
+    $show_modal = true;
+    $modal_title = "Spot Removed";
+    $modal_msg = "You have removed yourself from the playing roster.";
+    $modal_icon = 'info';
 }
 ?>
 <!DOCTYPE html>
@@ -79,7 +123,6 @@ if (isset($_SESSION['user_id']) && is_array($players)) {
     <title><?php echo htmlspecialchars($event_title); ?> - Match Lobby</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
     <!-- Google Maps API -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDgP6xqZcN4y50x2kq8cbytyD-k4OY1Sis&libraries=places"></script>
 
@@ -95,18 +138,25 @@ if (isset($_SESSION['user_id']) && is_array($players)) {
             }
         }
     </script>
-    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }</style>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); 
+        body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    </style>
 </head>
 <body class="selection:bg-brand-accent selection:text-black pb-20">
 
     <!-- Navbar -->
     <nav class="border-b border-white/5 bg-brand-card px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <a href="index.php" class="flex items-center gap-2 text-gray-400 hover:text-white">
+        <a href="homepage.php" class="flex items-center gap-2 text-gray-400 hover:text-white">
             <i data-lucide="arrow-left" size="20"></i> Back to Games
         </a>
         <div class="flex items-center gap-4">
-            <button class="p-2 text-gray-400 hover:text-white"><i data-lucide="share-2" size="20"></i></button>
-            <?php if (!$is_joined): ?>
+            <button onclick="shareEvent()" class="p-2 text-gray-400 hover:text-white transition-colors" title="Share Link">
+                <i data-lucide="share-2" size="20"></i>
+            </button>
+            <?php if (!$is_joined && !$is_current_user_organizer): ?>
                 <a href="checkout.php?event_id=<?php echo $event_id; ?>&type=join_game" class="relative p-2 text-brand-accent hover:text-white">
                     <i data-lucide="shopping-cart" size="20"></i>
                     <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
@@ -116,16 +166,13 @@ if (isset($_SESSION['user_id']) && is_array($players)) {
     </nav>
 
     <div class="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-        
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <!-- LEFT COLUMN: Match Info & Roster -->
+            <!-- LEFT COLUMN -->
             <div class="lg:col-span-2 space-y-6">
-                
                 <!-- Hero Card -->
                 <div class="bg-brand-card rounded-2xl p-6 border border-white/5 relative overflow-hidden">
                     <div class="absolute top-0 right-0 p-32 bg-brand-accent/5 blur-[80px] rounded-full"></div>
-                    
                     <div class="flex justify-between items-start relative z-10 mb-6">
                         <div>
                             <span class="px-3 py-1 bg-brand-purple/20 text-brand-purple text-xs font-bold uppercase tracking-wider rounded-full mb-2 inline-block">
@@ -173,17 +220,18 @@ if (isset($_SESSION['user_id']) && is_array($players)) {
                     </div>
                 </div>
 
-                <!-- The Squad (Roster) -->
+                <!-- The Squad -->
                 <div>
                     <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
                         <i data-lucide="users" class="text-brand-accent"></i> Squad List
                     </h3>
-                    
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <!-- Host Card -->
-                        <div class="bg-brand-card p-4 rounded-xl border border-brand-accent/30 relative">
-                            <span class="absolute top-2 right-2 text-[10px] bg-brand-accent text-black font-bold px-1.5 py-0.5 rounded">HOST</span>
-                            <div class="flex items-center gap-3 mb-2">
+                        <!-- Host -->
+                        <div class="bg-brand-card p-4 rounded-xl border <?php echo $organizer_is_playing ? 'border-brand-accent shadow-[0_0_10px_rgba(61,255,146,0.1)]' : 'border-white/10 border-dashed'; ?> relative transition-all">
+                            <span class="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded <?php echo $organizer_is_playing ? 'bg-brand-accent text-black' : 'bg-white/10 text-gray-400'; ?>">
+                                <?php echo $organizer_is_playing ? 'HOST • PLAYING' : 'HOST ONLY'; ?>
+                            </span>
+                            <div class="flex items-center gap-3 mb-2 mt-2">
                                 <div class="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm text-white uppercase">
                                     <?php echo substr($organizer_username, 0, 2); ?>
                                 </div>
@@ -194,16 +242,15 @@ if (isset($_SESSION['user_id']) && is_array($players)) {
                             </div>
                         </div>
 
-                        <!-- Player List -->
+                        <!-- Players -->
                         <?php if (is_array($players)): ?>
                             <?php foreach($players as $player): ?>
                                 <?php 
-                                    $p_id = $player['id'] ?? 0;
-                                    $o_id = $event['organizer_id'] ?? -1;
-                                    if($p_id == $o_id) continue; 
+                                    $p_id = intval($player['id'] ?? 0);
+                                    // Skip organizer in general list (they have the Host Card)
+                                    if($p_id == $organizer_id) continue; 
                                     $p_username = $player['user_name'] ?? 'Player';
                                 ?>
-                                
                                 <div class="bg-brand-card p-4 rounded-xl border border-white/5">
                                     <div class="flex items-center gap-3 mb-2">
                                         <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm text-white uppercase">
@@ -218,8 +265,16 @@ if (isset($_SESSION['user_id']) && is_array($players)) {
                             <?php endforeach; ?>
                         <?php endif; ?>
 
-                        <!-- Empty Slots (Visual Filler) -->
-                        <?php for($i = 0; $i < max(0, 4 - (is_array($players) ? count($players) : 0) - 1); $i++): ?>
+                        <!-- Empty Slots -->
+                        <?php 
+                            $slots_occupied = 0;
+                            if (is_array($players)) {
+                                $slots_occupied = count($players);
+                            }
+                            $target_slots = ($min_players > 0) ? $min_players : 10;
+                            $empty_slots_count = max(0, $target_slots - $slots_occupied);
+                        ?>
+                        <?php for($i = 0; $i < $empty_slots_count; $i++): ?>
                             <a href="checkout.php?event_id=<?php echo $event_id; ?>&type=join_game" class="bg-brand-dark p-4 rounded-xl border-2 border-dashed border-white/10 hover:border-brand-accent/50 hover:bg-white/5 transition-all group flex flex-col items-center justify-center gap-2 h-full cursor-pointer">
                                 <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-accent group-hover:text-black transition-colors">
                                     <i data-lucide="plus" size="16"></i>
@@ -229,69 +284,80 @@ if (isset($_SESSION['user_id']) && is_array($players)) {
                         <?php endfor; ?>
                     </div>
                 </div>
-
-                <!-- Google Map Section -->
+                
+                <!-- Map Section -->
                 <div class="bg-brand-card rounded-2xl p-6 border border-white/5">
                     <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
                         <i data-lucide="map" class="text-brand-accent"></i> Location
                     </h3>
-                    
                     <div id="map" class="w-full h-[300px] md:h-[400px] rounded-xl border border-white/10 mb-4 bg-[#2a2a35] relative group overflow-hidden"></div>
-                    
                     <div class="flex items-start gap-3">
-                        <div class="p-2 bg-brand-dark rounded-lg border border-white/5">
-                            <i data-lucide="navigation" size="18" class="text-brand-accent"></i>
-                        </div>
+                        <div class="p-2 bg-brand-dark rounded-lg border border-white/5"><i data-lucide="navigation" size="18" class="text-brand-accent"></i></div>
                         <div>
                             <h4 class="font-bold text-sm text-white"><?php echo htmlspecialchars($venue_name); ?></h4>
                             <p class="text-xs text-gray-500"><?php echo htmlspecialchars($venue_address); ?></p>
                         </div>
                     </div>
                 </div>
-
             </div>
 
-            <!-- RIGHT COLUMN: Actions -->
+            <!-- RIGHT COLUMN -->
             <div class="space-y-6">
-                
                 <!-- Action Card -->
                 <div class="bg-brand-card rounded-2xl p-6 border border-white/5 shadow-xl sticky top-24">
                     <?php if ($is_joined): ?>
+                        <!-- ALREADY JOINED -->
                         <div class="text-center py-4">
                             <div class="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <i data-lucide="check" size="32"></i>
                             </div>
                             <h3 class="font-bold text-xl text-white">You're on the list!</h3>
                             <p class="text-sm text-gray-400 mt-2">See you on the pitch.</p>
+                            
+                            <?php if ($is_current_user_organizer): ?>
+                                <!-- ORGANIZER LEAVE OPTION -->
+                                <form action="../actions/organizer_player_toggle.php" method="POST" class="mt-6">
+                                    <input type="hidden" name="event_id" value="<?php echo $event_id; ?>">
+                                    <input type="hidden" name="action" value="leave">
+                                    <button type="submit" class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs rounded-lg transition-colors border border-red-500/20">
+                                        Remove me from squad
+                                    </button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
-                        <h3 class="font-bold text-lg mb-4">Join this Game</h3>
-                        
-                        <div class="space-y-3 mb-6">
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-400">Spot Price</span>
-                                <span>GHS <?php echo number_format($entry_fee, 2); ?></span>
+                        <!-- NOT JOINED YET -->
+                        <?php if ($is_current_user_organizer): ?>
+                             <!-- ORGANIZER VIEW: Free Join -->
+                             <h3 class="font-bold text-lg mb-4 text-brand-accent">Hop in, Coach?</h3>
+                             <p class="text-sm text-gray-400 mb-6">As the host, you can take a spot on the roster instantly without extra fees.</p>
+                             
+                             <form action="../actions/organizer_player_toggle.php" method="POST">
+                                 <input type="hidden" name="event_id" value="<?php echo $event_id; ?>">
+                                 <input type="hidden" name="action" value="join">
+                                 <button type="submit" class="block w-full py-3 bg-brand-accent hover:bg-[#2fe080] text-black font-bold text-center rounded-xl transition-transform hover:scale-105">
+                                     Join Squad (Host)
+                                 </button>
+                             </form>
+                        <?php else: ?>
+                            <!-- PLAYER VIEW: Pay to Join -->
+                            <h3 class="font-bold text-lg mb-4">Join this Game</h3>
+                            <div class="space-y-3 mb-6">
+                                <div class="flex justify-between text-sm"><span class="text-gray-400">Spot Price</span><span>GHS <?php echo number_format($entry_fee, 2); ?></span></div>
+                                <div class="flex justify-between text-sm"><span class="text-gray-400">Booking Fee</span><span>GHS <?php echo number_format($service_fee, 2); ?></span></div>
+                                <div class="h-px bg-white/10"></div>
+                                <div class="flex justify-between font-bold text-brand-accent"><span>Total</span><span>GHS <?php echo number_format($total_cost, 2); ?></span></div>
                             </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-400">Booking Fee</span>
-                                <span>GHS <?php echo number_format($service_fee, 2); ?></span>
-                            </div>
-                            <div class="h-px bg-white/10"></div>
-                            <div class="flex justify-between font-bold text-brand-accent">
-                                <span>Total</span>
-                                <span>GHS <?php echo number_format($total_cost, 2); ?></span>
-                            </div>
-                        </div>
-
-                        <a href="checkout.php?event_id=<?php echo $event_id; ?>&type=join_game" class="block w-full py-3 bg-brand-accent hover:bg-[#2fe080] text-black font-bold text-center rounded-xl transition-transform hover:scale-105 mb-3">
-                            Join Squad (GHS <?php echo number_format($total_cost, 2); ?>)
-                        </a>
-                        <p class="text-[10px] text-center text-gray-500 mt-3">
-                            <i data-lucide="shield-check" size="10" class="inline"></i> Refunded automatically if game is cancelled.
-                        </p>
+                            <a href="checkout.php?event_id=<?php echo $event_id; ?>&type=join_game" class="block w-full py-3 bg-brand-accent hover:bg-[#2fe080] text-black font-bold text-center rounded-xl transition-transform hover:scale-105 mb-3">
+                                Join Squad (GHS <?php echo number_format($total_cost, 2); ?>)
+                            </a>
+                            <p class="text-[10px] text-center text-gray-500 mt-3">
+                                <i data-lucide="shield-check" size="10" class="inline"></i> Refunded automatically if game is cancelled.
+                            </p>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
-
+                
                 <!-- Live Chat Placeholder -->
                 <div class="bg-brand-card rounded-2xl border border-white/5 h-[400px] flex flex-col opacity-75">
                     <div class="p-4 border-b border-white/5 font-bold flex items-center justify-between">
@@ -302,88 +368,168 @@ if (isset($_SESSION['user_id']) && is_array($players)) {
                         Chat will be available once the game is confirmed.
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
 
+    <!-- SHARE MODAL -->
+    <div id="share-modal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#1a1a23] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl transform transition-all scale-95">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-white">Share Event</h3>
+                <button onclick="closeShareModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="bg-black/30 p-3 rounded-xl border border-white/5 mb-4 flex items-center gap-2">
+                <input type="text" id="share-url" class="bg-transparent border-none text-gray-400 text-sm flex-1 focus:outline-none truncate" readonly>
+                <button onclick="copyToClipboard()" class="p-2 bg-brand-accent/10 text-brand-accent rounded-lg hover:bg-brand-accent/20 transition-colors" title="Copy">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <button id="native-share-btn" onclick="triggerNativeShare()" class="w-full py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors border border-white/10 flex items-center justify-center gap-2 hidden">
+                <i data-lucide="share-2" class="w-4 h-4"></i> Share via...
+            </button>
+            
+            <div id="copy-feedback" class="text-center text-xs text-green-500 mt-2 hidden">Link copied!</div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION MODAL -->
+    <?php if($show_modal): ?>
+    <div id="notification-modal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-[#1a1a23] border border-white/10 rounded-2xl p-8 max-w-sm w-full shadow-2xl transform transition-all scale-100">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-brand-accent/10 text-brand-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="<?php echo $modal_icon; ?>" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2"><?php echo $modal_title; ?></h3>
+                <p class="text-gray-400 text-sm mb-6"><?php echo $modal_msg; ?></p>
+                <button onclick="closeModal()" class="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors border border-white/5">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <script>
         lucide.createIcons();
 
-        // --- MAP INITIALIZATION ---
+        // --- SHARE MODAL LOGIC ---
+        function shareEvent() {
+            const modal = document.getElementById('share-modal');
+            const urlInput = document.getElementById('share-url');
+            const nativeBtn = document.getElementById('native-share-btn');
+            
+            urlInput.value = window.location.href;
+            
+            if (navigator.share) {
+                nativeBtn.classList.remove('hidden');
+            } else {
+                nativeBtn.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+                modal.querySelector('div').classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeShareModal() {
+            const modal = document.getElementById('share-modal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.remove('scale-100');
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('copy-feedback').classList.add('hidden');
+            }, 300);
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById("share-url");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            if (navigator.clipboard) {
+                 navigator.clipboard.writeText(copyText.value).then(() => showCopyFeedback());
+            } else {
+                document.execCommand("copy");
+                showCopyFeedback();
+            }
+        }
+
+        function showCopyFeedback() {
+             const feedback = document.getElementById('copy-feedback');
+             feedback.classList.remove('hidden');
+             setTimeout(() => feedback.classList.add('hidden'), 2000);
+        }
+
+        function triggerNativeShare() {
+            const title = <?php echo json_encode($event_title); ?>;
+            const text = 'Check out this game on Haaah Sports!';
+            const url = window.location.href;
+            if (navigator.share) navigator.share({ title, text, url }).catch(console.error);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('notification-modal');
+            if(modal) {
+                modal.style.opacity = '0';
+                modal.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => modal.remove(), 300); 
+            }
+            const url = new URL(window.location);
+            url.searchParams.delete('msg');
+            window.history.replaceState({}, '', url);
+        }
+
+        // Map Logic
         function initMap() {
-            // Get PHP values (default to null if not set)
             const venueLat = <?php echo $venue_lat ? $venue_lat : 'null'; ?>;
             const venueLng = <?php echo $venue_lng ? $venue_lng : 'null'; ?>;
             const venueName = "<?php echo htmlspecialchars($venue_name); ?>";
             const venueAddr = "<?php echo htmlspecialchars($venue_address); ?>";
 
-            // Dark Mode Styles for Map
             const darkMapStyle = [
                 { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
                 { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
                 { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-                { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
-                { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
-                { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#263c3f" }] },
-                { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#6b9a76" }] },
                 { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
                 { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
                 { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
-                { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#746855" }] },
-                { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1f2835" }] },
-                { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#f3d19c" }] },
-                { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
-                { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
-                { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] }
+                { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] }
             ];
 
             const mapOptions = {
                 zoom: 15,
-                center: { lat: 5.6037, lng: -0.1870 }, // Default Accra
+                center: { lat: 5.6037, lng: -0.1870 },
                 styles: darkMapStyle,
-                disableDefaultUI: false,
-                streetViewControl: false,
-                mapTypeControl: false
+                disableDefaultUI: false
             };
 
             const map = new google.maps.Map(document.getElementById("map"), mapOptions);
 
-            // Logic: Prefer Lat/Lng, fallback to Address Geocoding
             if (venueLat && venueLng) {
                 const pos = { lat: venueLat, lng: venueLng };
                 map.setCenter(pos);
-                new google.maps.Marker({
-                    position: pos,
-                    map: map,
-                    title: venueName,
-                    icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' 
-                });
+                new google.maps.Marker({ position: pos, map: map, title: venueName, icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' });
             } else if (venueAddr && venueAddr !== 'Accra, Ghana') {
-                // Fallback: Geocode
                 const geocoder = new google.maps.Geocoder();
                 const fullAddress = venueName + ", " + venueAddr; 
-                
                 geocoder.geocode({ 'address': fullAddress }, function(results, status) {
                     if (status === 'OK') {
                         map.setCenter(results[0].geometry.location);
-                        new google.maps.Marker({
-                            map: map,
-                            position: results[0].geometry.location,
-                            title: venueName
-                        });
-                    } else {
-                        console.error('Geocode failed: ' + status);
+                        new google.maps.Marker({ map: map, position: results[0].geometry.location, title: venueName });
                     }
                 });
             }
         }
 
-        // Initialize map only if API loaded
         window.addEventListener('load', function() {
-            if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
-                initMap();
-            }
+            if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') initMap();
         });
     </script>
 </body>

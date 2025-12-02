@@ -1,129 +1,148 @@
 <?php
-
+// 1. Bootstrap Core
 require_once __DIR__ . '/../settings/core.php';
+
+// 2. Import User Class
 require_once PROJECT_ROOT . '/classes/user_class.php';
 
 class UserController {
-    private $userModel;
 
-    public function __construct()
-    {
-        $this->userModel = new User();
+    // --- GETTERS ---
+
+    public function get_user_by_id_ctr($id) {
+        $user = new User();
+        return $user->get_user_by_id($id);
     }
 
-    /**
-     * Get user by username or email for login
-     * @param string $input
-     * @return array|null
-     */
-    public function get_user_by_username_or_email($input)
-    {
-        // Try by username first
-        $user = $this->userModel->getUserByUsername($input);
-        if ($user) return $user;
-        // Try by email
-        return $this->userModel->getUserByEmail($input);
+    public function get_user_by_username_or_email($input) {
+        $user = new User();
+        // Try username first
+        $result = $user->get_user_by_username($input);
+        if ($result) return $result;
+        // Try email
+        return $user->get_user_by_email($input);
     }
 
-    /**
-     * Login user using username or email and password
-     * @param array $data
-     * @return array
-     */
-    public function login_user(array $data)
-    {
-        // required fields
-        $usernameOrEmail = trim($data['username'] ?? $data['email'] ?? '');
-        $password = $data['password'] ?? '';
+    // --- ACTIONS ---
 
-        if (!$usernameOrEmail || !$password) {
-            return ['success' => false, 'message' => 'Username/email and password required.'];
+    /**
+     * Register User Action
+     * Matches the method name called in debug_test.php
+     */
+    public function register_user_ctr($data) {
+        $user = new User();
+        
+        // 1. Basic Validation
+        if (empty($data['email']) || empty($data['password']) || empty($data['user_name'])) {
+            return ['success' => false, 'message' => 'Required fields missing.'];
         }
 
-        $user = $this->get_user_by_username_or_email($usernameOrEmail);
-        if (!$user) {
+        // 2. Check for Duplicates (Email)
+        if ($user->get_user_by_email($data['email'])) {
+            return ['success' => false, 'message' => 'Email already exists.'];
+        }
+
+        // 3. Create User
+        $newId = $user->create_user(
+            $data['first_name'],
+            $data['last_name'],
+            $data['email'],
+            $data['user_name'],
+            $data['password'],
+            $data['location'] ?? ''
+        );
+
+        if ($newId) {
+            // Start session immediately
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            $_SESSION['user_id'] = $newId;
+            $_SESSION['role'] = 0;
+            $_SESSION['user_name'] = $data['user_name'];
+            
+            return ['success' => true, 'id' => $newId];
+        }
+        
+        return ['success' => false, 'message' => 'Registration failed (Database Error).'];
+    }
+
+    /**
+     * Login User Action
+     */
+    public function login_user_ctr($usernameOrEmail, $password) {
+        // 1. Find User
+        $userData = $this->get_user_by_username_or_email($usernameOrEmail);
+        
+        if (!$userData) {
             return ['success' => false, 'message' => 'User not found.'];
         }
 
-        // Password field name expected in `users` table is `password` (hashed)
-        $hash = $user['password'] ?? $user['customer_pass'] ?? null;
-        if (!$hash || !password_verify($password, $hash)) {
-            return ['success' => false, 'message' => 'Incorrect password.'];
+        // 2. Verify Password
+        if (password_verify($password, $userData['password'])) {
+            
+            // 3. Set Session
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            
+            // Use 'id' as per your database schema
+            $_SESSION['user_id'] = $userData['id']; 
+            $_SESSION['role'] = $userData['role'];
+            $_SESSION['user_name'] = $userData['user_name'];
+
+            // 4. Intelligent Redirect
+            $redirect = '../view/homepage.php'; // Default
+            
+            if (isset($_SESSION['redirect_to'])) {
+                $redirect = $_SESSION['redirect_to'];
+                unset($_SESSION['redirect_to']);
+            } elseif ($userData['role'] == 1) {
+                $redirect = '../admin/dashboard.php';
+            }
+
+            return [
+                'success' => true, 
+                'message' => 'Login successful',
+                'redirect' => $redirect,
+                'user_id' => $userData['id']
+            ];
         }
 
-        // set session values (ensure core started the session)
-        // try common id field names
-        $uid = $user['user_id'] ?? $user['id'] ?? $user['customer_id'] ?? $user['userid'] ?? $user['userId'] ?? null;
-        $uname = $user['user_name'] ?? $user['username'] ?? $user['name'] ?? $user['first_name'] ?? null;
-        $uemail = $user['email'] ?? $user['customer_email'] ?? null;
-        $urole = $user['user_role'] ?? $user['role'] ?? 1;
-
-        if ($uid) $_SESSION['user_id'] = $uid;
-        if ($uname) {
-            // set both keys to be safe
-            $_SESSION['user_name'] = $uname;
-            $_SESSION['username'] = $uname;
-        }
-        if ($uemail) $_SESSION['user_email'] = $uemail;
-        $_SESSION['user_role'] = $urole;
-
-        return ['success' => true, 'message' => 'Login successful.', 'data' => ['user_id' => $uid, 'user_name' => $uname, 'user_role' => $urole]];
+        return ['success' => false, 'message' => 'Incorrect password.'];
     }
 
     /**
-     * Register a new user
-     * @param array $data
-     * @return array [success => bool, message => string, data => mixed]
+     * Update Profile Action
      */
-    public function register_user(array $data)
-    {
-        // basic server-side validation
-        $required = ['first_name','last_name','email','username','password','confirm_password'];
-        foreach ($required as $f) {
-            if (empty($data[$f])) {
-                return ['success'=>false, 'message'=> ucfirst(str_replace('_',' ',$f)) . ' is required.'];
-            }
+    public function update_user_profile_ctr($user_id, $data) {
+        $user = new User();
+
+        // 1. Validation
+        if (empty($data['first_name']) || empty($data['last_name']) || empty($data['user_name'])) {
+            return ['success' => false, 'message' => 'Name and Username are required.'];
         }
 
-        if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            return ['success'=>false, 'message'=>'Invalid email address.'];
+        // 2. Format JSON for tags
+        $tags_data = [
+            'positions' => isset($data['positions']) ? $data['positions'] : [],
+            'traits' => isset($data['traits']) ? $data['traits'] : []
+        ];
+        $json_details = json_encode($tags_data);
+
+        // 3. Update
+        $result = $user->update_user_profile(
+            $user_id,
+            trim($data['first_name']),
+            trim($data['last_name']),
+            trim($data['user_name']),
+            trim($data['location'] ?? ''),
+            $json_details
+        );
+
+        if ($result) {
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            $_SESSION['user_name'] = trim($data['user_name']);
+            return ['success' => true, 'message' => 'Profile updated successfully.'];
         }
 
-        if (strlen($data['password']) < 8) {
-            return ['success'=>false, 'message'=>'Password must be at least 8 characters.'];
-        }
-
-        if ($data['password'] !== $data['confirm_password']) {
-            return ['success'=>false, 'message'=>'Passwords do not match.'];
-        }
-
-        // check if email already exists
-        $existing = $this->userModel->getUserByEmail($data['email']);
-        if ($existing) {
-            return ['success'=>false, 'message'=>'An account with this email already exists.'];
-        }
-
-        // create user - city/country/phone optional
-        $first_name = trim($data['first_name']);
-        $last_name = trim($data['last_name']);
-        $email = trim($data['email']);
-        $username = trim($data['username']);
-        $password = $data['password'];
-        // $phone = isset($data['phone']) ? $data['phone'] : '';
-        $location = isset($data['location']) ? $data['location'] : '';
-        // $city = isset($data['city']) ? $data['city'] : '';
-
-        $newId = $this->userModel->createUser($first_name, $last_name, $email, $username, $password, $location);
-        if ($newId) {
-            //  set session
-            $_SESSION['user_id'] = $newId;
-            $_SESSION['username'] = $username;
-            $_SESSION['user_email'] = $email;
-            return ['success'=>true, 'message'=>'Registration successful','data'=>['user_id'=>$newId]];
-        }
-
-        return ['success'=>false, 'message'=>'Could not create user - please try again later.'];
+        return ['success' => false, 'message' => 'Failed to update profile.'];
     }
 }
-
 ?>

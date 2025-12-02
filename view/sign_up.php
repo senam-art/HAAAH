@@ -35,8 +35,8 @@ hasLoggedIn();
 
     <!-- Background Elements -->
     <div class="absolute inset-0 z-0">
-        <img src="https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&q=80&w=1600" class="w-full h-full object-cover opacity-20 grayscale">
-        <div class="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/90 to-brand-dark/50"></div>
+        <img src="../images/backgroundimage_landing.jpeg" class="w-full h-full object-cover opacity-60 grayscale">
+        <div class="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/20 to-brand-dark/50"></div>
     </div>
 
     <!-- Nav -->
