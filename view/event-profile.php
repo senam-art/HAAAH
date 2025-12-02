@@ -1,105 +1,74 @@
 <?php
-// 1. ENABLE DEBUGGING (Aggressive Mode)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// 2. Custom Error Handler to catch warnings/notices as exceptions
-set_error_handler(function($severity, $message, $file, $line) {
-    if (!(error_reporting() & $severity)) {
-        return;
-    }
-    throw new ErrorException($message, 0, $severity, $file, $line);
-});
-
 session_start();
 
-try {
-    // 3. Robust Include Path
-    $controller_path = __DIR__ . '/../controllers/guest_controller.php';
-    
-    if (!file_exists($controller_path)) {
-        throw new Exception("Controller file not found at: " . $controller_path);
-    }
-    require_once $controller_path;
+// 1. Include Controller
+require_once __DIR__ . '/../controllers/guest_controller.php';
 
-    // 4. Get Event ID
-    if (!isset($_GET['id'])) {
-        echo "<script>window.location.href = 'index.php';</script>";
-        exit();
-    }
-    $event_id = $_GET['id'];
+// 2. Get Event ID
+if (!isset($_GET['id'])) {
+    header("Location: index.php");
+    exit();
+}
+$event_id = $_GET['id'];
 
-    // 5. Fetch Data
-    if (!function_exists('get_event_details_ctr')) {
-        throw new Exception("Function 'get_event_details_ctr' is missing. Check guest_controller.php.");
-    }
+// 3. Fetch Data
+$event = get_event_details_ctr($event_id);
+$players = get_event_players_ctr($event_id);
 
-    $event = get_event_details_ctr($event_id);
-    
-    if (!$event) {
-        throw new Exception("Event not found in database for ID: " . htmlspecialchars($event_id));
-    }
+// 4. Check if event exists
+if (!$event) {
+    // Redirect or show simple error
+    // header("Location: index.php"); 
+    // exit();
+    die("Event not found.");
+}
 
-    // Check if players function exists
-    if (!function_exists('get_event_players_ctr')) {
-        throw new Exception("Function 'get_event_players_ctr' is missing.");
-    }
-    $players = get_event_players_ctr($event_id);
+// 5. Logic & Calculations
+// Use null coalescing (??) to handle potential missing database fields safely
+$min_players = intval($event['min_players'] ?? 0);
+$current_players_db = intval($event['current_players'] ?? 0);
 
-    // 6. Logic & Calculations (With null safety)
-    $min_players = intval($event['min_players'] ?? 0);
-    $current_players_db = intval($event['current_players'] ?? 0);
+$players_list_count = (is_array($players)) ? count($players) : 0;
+$current_players = $players_list_count > 0 ? $players_list_count : $current_players_db;
 
-    $players_list_count = (is_array($players)) ? count($players) : 0;
-    $current_players = $players_list_count > 0 ? $players_list_count : $current_players_db;
+$spots_left = max(0, $min_players - $current_players);
+$progress_percent = ($min_players > 0) ? min(100, ($current_players / $min_players) * 100) : 0;
 
-    $spots_left = max(0, $min_players - $current_players);
-    $progress_percent = ($min_players > 0) ? min(100, ($current_players / $min_players) * 100) : 0;
+$status = $event['status'] ?? 'pending';
+$is_confirmed = ($status === 'confirmed');
 
-    $status = $event['status'] ?? 'pending';
-    $is_confirmed = ($status === 'confirmed');
+$organizer_username = $event['organizer_username'] ?? 'Unknown';
+$organizer_name = '@' . $organizer_username; 
 
-    $organizer_username = $event['organizer_username'] ?? 'Unknown';
-    $organizer_name = '@' . $organizer_username; 
+// Calculate Fees
+$entry_fee = floatval($event['cost_per_player'] ?? 0);
+$service_fee = $entry_fee * 0.10; 
+$total_cost = $entry_fee + $service_fee;
 
-    // Calculate Fees
-    $entry_fee = floatval($event['cost_per_player'] ?? 0);
-    $service_fee = $entry_fee * 0.10; 
-    $total_cost = $entry_fee + $service_fee;
+// Format Dates
+$event_date_str = $event['event_date'] ?? 'now';
+$event_time_str = $event['event_time'] ?? '00:00';
+$formatted_date = date('D, M j', strtotime($event_date_str));
+$formatted_time = date('H:i', strtotime($event_time_str));
 
-    // Format Dates
-    $event_date_str = $event['event_date'] ?? 'now';
-    $event_time_str = $event['event_time'] ?? '00:00';
-    $formatted_date = date('D, M j', strtotime($event_date_str));
-    $formatted_time = date('H:i', strtotime($event_time_str));
-    $venue_name = $event['venue_name'] ?? 'Unknown Venue';
-    $event_title = $event['title'] ?? 'Untitled Event';
-    $event_format = $event['format'] ?? 'Sport';
+// Location Data for Map
+$venue_name = $event['venue_name'] ?? 'Unknown Venue';
+$venue_address = $event['venue_address'] ?? 'Accra, Ghana';
+$venue_lat = isset($event['latitude']) ? floatval($event['latitude']) : null;
+$venue_lng = isset($event['longitude']) ? floatval($event['longitude']) : null;
 
-    // Check Membership
-    $is_joined = false;
-    if (isset($_SESSION['user_id']) && is_array($players)) {
-        foreach ($players as $p) {
-            if (isset($p['id']) && $p['id'] == $_SESSION['user_id']) {
-                $is_joined = true;
-                break;
-            }
+$event_title = $event['title'] ?? 'Untitled Event';
+$event_format = $event['format'] ?? 'Sport';
+
+// Check Membership (Is current user already joined?)
+$is_joined = false;
+if (isset($_SESSION['user_id']) && is_array($players)) {
+    foreach ($players as $p) {
+        if (isset($p['id']) && $p['id'] == $_SESSION['user_id']) {
+            $is_joined = true;
+            break;
         }
     }
-
-} catch (Throwable $e) { 
-    // ^ CHANGED: Catch 'Throwable' to catch Fatal Errors, Parse Errors, and Exceptions
-    
-    die("<div style='background-color: #1a1a23; color: #ef4444; padding: 40px; font-family: monospace; height: 100vh;'>
-            <h2 style='border-bottom: 1px solid #333; padding-bottom: 10px;'>System Error</h2>
-            <p style='font-size: 1.2em; font-weight: bold;'>" . $e->getMessage() . "</p>
-            <div style='background: #000; padding: 15px; border-radius: 8px; margin-top: 20px; overflow-x: auto;'>
-                <pre>" . $e->getTraceAsString() . "</pre>
-            </div>
-            <p style='margin-top: 20px; color: #666;'>File: " . $e->getFile() . " on line " . $e->getLine() . "</p>
-            <a href='index.php' style='display: inline-block; margin-top: 20px; color: #3dff92; text-decoration: none;'>&larr; Return to Home</a>
-         </div>");
 }
 ?>
 <!DOCTYPE html>
@@ -110,6 +79,10 @@ try {
     <title><?php echo htmlspecialchars($event_title); ?> - Match Lobby</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDgP6xqZcN4y50x2kq8cbytyD-k4OY1Sis&libraries=places"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -224,7 +197,6 @@ try {
                         <!-- Player List -->
                         <?php if (is_array($players)): ?>
                             <?php foreach($players as $player): ?>
-                                <!-- Skip rendering organizer again if they are in the players list -->
                                 <?php 
                                     $p_id = $player['id'] ?? 0;
                                     $o_id = $event['organizer_id'] ?? -1;
@@ -258,11 +230,22 @@ try {
                     </div>
                 </div>
 
-                <!-- Venue Map Placeholder -->
-                <div class="rounded-2xl overflow-hidden border border-white/5 h-48 relative bg-[#2a2a35] flex items-center justify-center group cursor-pointer">
-                    <div class="text-center">
-                        <i data-lucide="map" class="mx-auto mb-2 text-gray-500 group-hover:text-brand-accent transition-colors"></i>
-                        <span class="text-sm text-gray-400 group-hover:text-white">View <?php echo htmlspecialchars($venue_name); ?> on Map</span>
+                <!-- Google Map Section -->
+                <div class="bg-brand-card rounded-2xl p-6 border border-white/5">
+                    <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                        <i data-lucide="map" class="text-brand-accent"></i> Location
+                    </h3>
+                    
+                    <div id="map" class="w-full h-[300px] md:h-[400px] rounded-xl border border-white/10 mb-4 bg-[#2a2a35] relative group overflow-hidden"></div>
+                    
+                    <div class="flex items-start gap-3">
+                        <div class="p-2 bg-brand-dark rounded-lg border border-white/5">
+                            <i data-lucide="navigation" size="18" class="text-brand-accent"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-white"><?php echo htmlspecialchars($venue_name); ?></h4>
+                            <p class="text-xs text-gray-500"><?php echo htmlspecialchars($venue_address); ?></p>
+                        </div>
                     </div>
                 </div>
 
@@ -324,6 +307,84 @@ try {
         </div>
     </div>
 
-    <script>lucide.createIcons();</script>
+    <script>
+        lucide.createIcons();
+
+        // --- MAP INITIALIZATION ---
+        function initMap() {
+            // Get PHP values (default to null if not set)
+            const venueLat = <?php echo $venue_lat ? $venue_lat : 'null'; ?>;
+            const venueLng = <?php echo $venue_lng ? $venue_lng : 'null'; ?>;
+            const venueName = "<?php echo htmlspecialchars($venue_name); ?>";
+            const venueAddr = "<?php echo htmlspecialchars($venue_address); ?>";
+
+            // Dark Mode Styles for Map
+            const darkMapStyle = [
+                { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+                { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+                { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+                { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#263c3f" }] },
+                { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#6b9a76" }] },
+                { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+                { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+                { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
+                { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#746855" }] },
+                { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1f2835" }] },
+                { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#f3d19c" }] },
+                { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
+                { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
+                { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] }
+            ];
+
+            const mapOptions = {
+                zoom: 15,
+                center: { lat: 5.6037, lng: -0.1870 }, // Default Accra
+                styles: darkMapStyle,
+                disableDefaultUI: false,
+                streetViewControl: false,
+                mapTypeControl: false
+            };
+
+            const map = new google.maps.Map(document.getElementById("map"), mapOptions);
+
+            // Logic: Prefer Lat/Lng, fallback to Address Geocoding
+            if (venueLat && venueLng) {
+                const pos = { lat: venueLat, lng: venueLng };
+                map.setCenter(pos);
+                new google.maps.Marker({
+                    position: pos,
+                    map: map,
+                    title: venueName,
+                    icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' 
+                });
+            } else if (venueAddr && venueAddr !== 'Accra, Ghana') {
+                // Fallback: Geocode
+                const geocoder = new google.maps.Geocoder();
+                const fullAddress = venueName + ", " + venueAddr; 
+                
+                geocoder.geocode({ 'address': fullAddress }, function(results, status) {
+                    if (status === 'OK') {
+                        map.setCenter(results[0].geometry.location);
+                        new google.maps.Marker({
+                            map: map,
+                            position: results[0].geometry.location,
+                            title: venueName
+                        });
+                    } else {
+                        console.error('Geocode failed: ' + status);
+                    }
+                });
+            }
+        }
+
+        // Initialize map only if API loaded
+        window.addEventListener('load', function() {
+            if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
+                initMap();
+            }
+        });
+    </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 <?php
-// Adjust this path if your db_class is in a different folder
+
 require_once __DIR__ . '/../settings/core.php';
 require_once PROJECT_ROOT . '/settings/db_class.php';
 

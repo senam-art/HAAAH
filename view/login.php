@@ -1,3 +1,9 @@
+<?php
+require_once __DIR__ . '/../settings/core.php';
+
+hasLoggedIn();
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,13 +30,13 @@
 
     <!-- Background Elements -->
     <div class="absolute inset-0 z-0">
-        <img src="https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=1600" class="w-full h-full object-cover opacity-20 grayscale">
+        <img src="https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=1600" class="w-full h-full object-cover opacity-60 grayscale">
         <div class="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/90 to-brand-dark/50"></div>
     </div>
 
     <!-- Nav -->
     <nav class="relative z-10 px-6 py-6">
-        <a href="landing.html" class="font-black tracking-tighter text-2xl text-white">
+        <a href="../landing.php" class="font-black tracking-tighter text-2xl text-white">
             HAAAH<span class="text-brand-accent text-base font-normal tracking-widest ml-1">SPORTS</span>
         </a>
     </nav>
@@ -87,7 +93,7 @@
 
             <p class="mt-8 text-center text-sm text-gray-400">
                 Don't have an account? 
-                <a href="signup.html" class="text-brand-accent font-bold hover:underline">Create one</a>
+                <a href="sign_up.php" class="text-brand-accent font-bold hover:underline">Create one</a>
             </p>
         </div>
     </main>
