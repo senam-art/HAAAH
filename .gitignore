@@ -2,6 +2,7 @@
 /uploads/
 
 settings/db_cred.php
+test.html
 
 # Ignore log files
 *.log
