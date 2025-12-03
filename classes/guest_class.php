@@ -8,14 +8,28 @@ class Guest extends db_connection {
     }
 
     // --- HOMEPAGE METHODS ---
-
-    function getActiveEvents() {
+public function getActiveEvents($search = '', $lat = null, $lng = null) {
+        
+        // Base Query
         $sql = "SELECT e.*, v.name AS venue_name, v.address AS venue_address, v.image_urls
                 FROM events e 
                 JOIN venues v ON e.venue_id = v.venue_id 
-                WHERE e.status IN ('pending', 'confirmed') 
-                AND e.is_approved = 1 
-                ORDER BY e.event_date ASC";
+                WHERE e.is_approved = 1 
+                AND e.status IN ('open', 'upcoming', 'confirmed') 
+                AND e.event_date >= CURDATE()";
+
+        // Add Search Filter if provided
+        if (!empty($search)) {
+            $safe_search = $this->db->real_escape_string($search);
+            $sql .= " AND (e.title LIKE '%$safe_search%' 
+                       OR v.name LIKE '%$safe_search%' 
+                       OR v.address LIKE '%$safe_search%' 
+                       OR e.sport LIKE '%$safe_search%')";
+        }
+
+        // Order by Date (Soonest first)
+        $sql .= " ORDER BY e.event_date ASC, e.event_time ASC";
+
         return $this->db_fetch_all($sql);
     }
 

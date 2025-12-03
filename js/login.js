@@ -34,16 +34,35 @@ document.addEventListener('DOMContentLoaded', function () {
                 data = { success: false, message: 'Server returned an invalid response.' };
             }
 
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-
-            showMessage(data.message, data.success);
-
             if (data.success) {
+                showMessage("Login successful! Redirecting...", true);
+                
+                // --- REDIRECTION LOGIC IN JS ---
+                // 1. Get role from response (0=Player, 1=Manager, 2=Admin)
+                const role = parseInt(data.role); 
+                let targetUrl = '../view/homepage.php'; // Default
+
+                // 2. Logic matching your PHP redirectIfLoggedIn()
+                if (role === 1) {
+                    // Managers go to Dashboard (manage_venues.php is the dashboard, venue-profile needs an ID)
+                    targetUrl = '../view/manage_venues.php'; 
+                } else if (role === 2) {
+                    // Admin
+                    targetUrl = '../view/admin_dashboard.php';
+                } else {
+                    // Regular User
+                    targetUrl = '../view/homepage.php';
+                }
+
+                // 3. Execute Redirect
                 setTimeout(() => {
-                    // Use the redirect provided by the backend, or fallback to homepage.php
-                    window.location.href = data.redirect || '../view/homepage.php';
-                }, 1200);
+                    window.location.href = targetUrl;
+                }, 1000);
+
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                showMessage(data.message, false);
             }
         })
         .catch(() => {
@@ -59,10 +78,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!msgDiv) {
             msgDiv = document.createElement('div');
             msgDiv.id = 'formMessage';
-            msgDiv.className = 'mb-4 text-sm text-center';
             form.prepend(msgDiv);
         }
-        msgDiv.className = 'mb-4 text-sm text-center ' + (success ? 'text-green-400' : 'text-red-400');
+        // Tailwind styling for message box
+        msgDiv.className = `mb-4 p-3 rounded-xl text-sm font-bold text-center border ${
+            success 
+            ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+            : 'bg-red-500/10 text-red-400 border-red-500/20'
+        }`;
         msgDiv.textContent = msg;
+        msgDiv.classList.remove('hidden');
     }
 });

@@ -35,8 +35,8 @@ const DOM = {
         costPerPlayer: 'cost_per_player',
         minPlayers: 'min_players',
         commitmentFee: 'hidden_commitment_fee',
-        title: 'input[name="title"]', // Helper selector for querySelector
-        email: 'user_email_hidden'    // Helper selector for getElementById
+        title: 'input[name="title"]', 
+        email: 'user_email_hidden'    
     },
     display: {
         badge: 'selected-venue-display',
@@ -205,7 +205,6 @@ function renderVenueCard() {
 
     const venue = STATE.allVenues[STATE.currentVenueIndex];
     
-    // Update marker (if map is ready)
     updateMapMarker(venue);
 
     const isSelected = (String(STATE.selectedVenueId) === String(venue.venue_id));
@@ -215,21 +214,32 @@ function renderVenueCard() {
     const btnClass = isSelected 
         ? 'flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg shadow-green-900/20 transform scale-[1.02] transition-all flex items-center justify-center gap-2' 
         : 'flex-1 py-3 bg-brand-accent text-black font-bold rounded-xl hover:bg-[#2fe080] transition-colors flex items-center justify-center gap-2'; 
-
     let imagesHtml = '';
     let dotsHtml = '';
+
     if (venue.image_urls) {
         let imgs = Array.isArray(venue.image_urls) ? venue.image_urls : [venue.image_urls];
+
+        // Parse JSON string if needed (Handles ["\/uploads\/..."] format automatically)
         if (typeof venue.image_urls === 'string' && venue.image_urls.startsWith('[')) {
-             try { imgs = JSON.parse(venue.image_urls); } catch(e) {}
+            try { imgs = JSON.parse(venue.image_urls); } catch(e) {}
         }
+
         if (imgs.length > 0) {
-            imagesHtml = imgs.map(url => `
-                <div class="flex-none w-full h-full snap-center relative">
-                    <img src="${url}" class="w-full h-full object-cover" loading="lazy" />
-                    <div class="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent"></div>
-                </div>
-            `).join('');
+            imagesHtml = imgs.map(url => {
+                // FIX: Handle relative paths from DB (e.g. /uploads/venues/...)
+                // 'url' here will be "/uploads/venues/..." (JSON.parse removes backslashes)
+                // We prepend '..' to go from 'view/' to root.
+                let safeUrl = url.startsWith('/uploads') ? '..' + url : url; 
+                
+                return `
+                    <div class="flex-none w-full h-full snap-center relative">
+                        <img src="${safeUrl}" class="w-full h-full object-cover" loading="lazy" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent"></div>
+                    </div>
+                `;
+            }).join('');
+
             if (imgs.length > 1) {
                 dotsHtml = `<div class="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
                     ${imgs.map((_, i) => `<div class="w-1.5 h-1.5 rounded-full bg-white/50 backdrop-blur-sm ${i===0?'bg-brand-accent w-3':''}"></div>`).join('')}
@@ -250,14 +260,12 @@ function renderVenueCard() {
         }
     }
 
-    // UPDATED HTML TO INCLUDE THE BUTTON
     container.innerHTML = `
         <div class="h-[500px] w-full bg-brand-card rounded-2xl border border-white/10 overflow-hidden shadow-2xl flex flex-col relative animate-fade-in group">
             <div class="relative h-[220px] w-full bg-gray-900 shrink-0">
                 <div class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide h-full w-full" style="scroll-behavior: smooth;">${imagesHtml}</div>
                 ${dotsHtml}
                 
-                <!-- [NEW] View Profile Button -->
                 <a href="venue-profile.php?id=${venue.venue_id}" target="_blank" class="absolute top-4 right-4 z-20 p-2 bg-black/60 hover:bg-brand-accent hover:text-black text-white rounded-lg backdrop-blur-md border border-white/10 transition-all shadow-lg" title="View Full Venue Profile">
                     <i data-lucide="external-link" size="18"></i>
                 </a>
@@ -537,12 +545,13 @@ function payWithPaystack() {
     payBtn.disabled = true;
     payBtn.innerHTML = "Initializing...";
 
+    // Initialize Paystack Popup
     const handler = PaystackPop.setup({
         key: 'pk_test_62bcb1bc82f3445af1255aa8a8f0f1e7446f7936', 
         email: email,
         amount: STATE.pendingAmount * 100, // Convert to Kobo
         currency: 'GHS',
-        ref: 'HAAAH-' + Math.floor((Math.random() * 1000000000) + 1), 
+        ref: 'HAAAH-' + Math.floor((Math.random() * 1000000000) + 1), // Generate a random ref
         metadata: {
             custom_fields: [
                 { display_name: "Event ID", variable_name: "event_id", value: STATE.pendingEventId },
@@ -550,6 +559,7 @@ function payWithPaystack() {
             ]
         },
         callback: function(response) {
+            // Success! Redirect to Controller for verification
             window.location.href = `../actions/verify_payment.php?reference=${response.reference}&event_id=${STATE.pendingEventId}&type=organizer_fee`;
         },
         onClose: function() {
@@ -573,13 +583,14 @@ function handleFormSubmit(e) {
     if (!document.getElementById(DOM.inputs.venueId).value) { alert("⚠️ Please select a venue."); return; }
 
     const submitBtn = document.getElementById(DOM.btn.submit);
-    submitBtn.setAttribute('data-original-text', submitBtn.innerHTML); 
+    submitBtn.setAttribute('data-original-text', submitBtn.innerHTML); // Save text
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Creating Event...';
     if(window.lucide) lucide.createIcons();
 
     const formData = new FormData(form);
     
+    // Get title manually for the modal (FormData might be tricky to read back immediately)
     const titleVal = form.querySelector('input[name="title"]').value;
     const feeVal = document.getElementById(DOM.inputs.commitmentFee).value;
 
@@ -592,6 +603,7 @@ function handleFormSubmit(e) {
         try { data = JSON.parse(text.trim()); } catch (e) { data = { success: false, message: 'Server error' }; }
 
         if (data.success && data.event_id) {
+            // STOP! Don't redirect. Open the Payment Modal.
             showPaymentModal(data.event_id, feeVal, titleVal);
         } else {
             alert("Error: " + (data.message || "Failed"));

@@ -6,16 +6,14 @@ require_once __DIR__ . '/../settings/core.php';
 require_once PROJECT_ROOT . '/actions/get_profile_data.php';
 
 // 3. Determine Profile Picture
-$profile_pic_path = $profile_tags['profile_image'] ?? null;
-
-if ($profile_pic_path) {
-    // Make the path browser-accessible dynamically
-    $profile_pic_url = UPLOADS_URL . str_replace('/uploads', '', $profile_pic_path);
-} else {
-    // Fallback image
-    $profile_pic_url = 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80';
+// Logic: If image exists, ensure it points to ../uploads/... relative to this file
+$profile_pic_path = null;
+if (!empty($profile_tags['profile_image'])) {
+    // Remove leading slash if present (e.g. /uploads... -> uploads...)
+    $clean_path = ltrim($profile_tags['profile_image'], '/');
+    // Prepend parent directory to exit 'view/' folder
+    $profile_pic_path = "../" . $clean_path;
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">

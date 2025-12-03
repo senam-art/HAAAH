@@ -12,38 +12,6 @@ if (!defined('PROJECT_ROOT')) {
     define('PROJECT_ROOT', dirname(__DIR__));
 }
 
-// 3. Define Uploads File System Path (Where files are saved)
-define('UPLOADS_FS', PROJECT_ROOT . '/uploads');
-
-
-// 4. Define Browser URL Root (Where images are loaded from)
-// -------------------------------------------------------
-
-$web_root = ''; // Default to root
-
-// Check A: Is this a User Directory (Live Server e.g., /~senam.dzomeku)?
-if (isset($_SERVER['REQUEST_URI']) && preg_match('|/~[^/]+|', $_SERVER['REQUEST_URI'], $matches)) {
-    // Found /~username in the URL, set that as the root
-    $web_root = $matches[0]; 
-} 
-// Check B: Is this a Subfolder (Localhost e.g., /Haaah)?
-else {
-    // Calculate relative path from Document Root to Project Root
-    // Normalize slashes for Windows/Linux compatibility
-    $fs_doc_root = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
-    $fs_proj_root = str_replace('\\', '/', PROJECT_ROOT);
-    
-    if (strpos($fs_proj_root, $fs_doc_root) === 0) {
-        $web_root = substr($fs_proj_root, strlen($fs_doc_root));
-    }
-}
-
-// Define the final URL constant
-define('WEB_ROOT', $web_root);
-define('UPLOADS_URL', $web_root . '/uploads');
-
-
-
 
 /**
  * Redirect user if already logged in

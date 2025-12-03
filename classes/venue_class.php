@@ -137,6 +137,8 @@ class Venue extends db_connection
         return $blocked_hours;
     }
 
+    
+
 
     // --- AVAILABILITY ---
 

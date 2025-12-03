@@ -1,4 +1,9 @@
 <?php
+// 1. ENABLE DEBUGGING
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require_once '../settings/core.php';
 require_once PROJECT_ROOT . '/controllers/user_controller.php';
 require_once PROJECT_ROOT . '/controllers/venue_controller.php';
@@ -9,18 +14,32 @@ $profile_pic_path = null;
 
 // 1. FETCH USER DATA (Only if logged in)
 if (isset($_SESSION['user_id'])) {
-    // Load Profile Data (Safely inside session check)
-    if (file_exists(PROJECT_ROOT . '/actions/get_profile_data.php')) {
-        include PROJECT_ROOT . '/actions/get_profile_data.php';
-        $profile_pic_path = $profile_tags['profile_image'] ?? null;
-    }
-
+    
+    // A. Fetch Basic User Info (For Initials)
     $userController = new UserController();
     $current_user = $userController->get_user_by_id_ctr($_SESSION['user_id']);
+    
     if ($current_user) {
-        $initials = strtoupper(substr($current_user['user_name'], 0, 1));
+        // Generate Initials: First Name [0] + Last Name [0]
+        // Fallback to Username if First Name is missing
+        $name_source = !empty($current_user['first_name']) ? $current_user['first_name'] : $current_user['user_name'];
+        $initials = strtoupper(substr($name_source, 0, 1));
+        
         if (!empty($current_user['last_name'])) {
             $initials .= strtoupper(substr($current_user['last_name'], 0, 1));
+        }
+    }
+
+    // B. Load Profile Details (For Picture)
+    // We include the action that parses the JSON 'profile_details' column
+    if (file_exists(PROJECT_ROOT . '/actions/get_profile_data.php')) {
+        include PROJECT_ROOT . '/actions/get_profile_data.php';
+        
+        // Check if image exists in the parsed tags
+        if (!empty($profile_tags['profile_image'])) {
+            // Remove leading slash to avoid double slashes, then go up one level (..)
+            $clean_path = ltrim($profile_tags['profile_image'], '/');
+            $profile_pic_path = "../" . $clean_path;
         }
     }
 }
@@ -198,7 +217,7 @@ if ($modal_type === 'venue_submitted_for_review') {
             <!-- GUEST HEADER ACTIONS -->
             <div id="header-guest" class="flex items-center gap-3">
                 <a href="login.php" class="hidden sm:flex items-center gap-2 px-6 py-2 bg-transparent text-white font-bold hover:text-brand-accent transition-colors text-sm">Log In</a>
-                <a href="sign_up.php" class="px-5 py-2 bg-white text-black font-bold rounded-full text-sm hover:bg-gray-200 transition-colors">Sign Up</a>
+                <a href="register.php" class="px-5 py-2 bg-white text-black font-bold rounded-full text-sm hover:bg-gray-200 transition-colors">Sign Up</a>
             </div>
 
             <!-- USER HEADER ACTIONS -->
@@ -213,11 +232,13 @@ if ($modal_type === 'venue_submitted_for_review') {
                 </a>
                 
                 <!-- Dynamic Profile Link -->
-                <a href="profile.php" class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm border-2 border-brand-card hover:border-brand-accent transition-colors text-white overflow-hidden">
+                <a href="profile.php" class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm border-2 border-brand-card hover:border-brand-accent transition-colors text-white overflow-hidden relative">
                     <?php if ($profile_pic_path): ?>
+                        <!-- Image -->
                         <img src="<?php echo htmlspecialchars($profile_pic_path); ?>" class="w-full h-full object-cover">
                     <?php else: ?>
-                        <?php echo $initials; ?>
+                        <!-- Initials Fallback -->
+                        <span><?php echo $initials; ?></span>
                     <?php endif; ?>
                 </a>
             </div>

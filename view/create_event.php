@@ -9,7 +9,7 @@ require_once PROJECT_ROOT . '/controllers/user_controller.php';
 require_once PROJECT_ROOT . '/actions/get_profile_data.php';
 
 // 3. Determine Profile Picture
-$profile_pic_path = $profile_tags['profile_image'] ?? null;
+$profile_pic_path = ".." . $profile_tags['profile_image'] ?? null;
 
 
 check_login();

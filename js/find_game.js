@@ -88,7 +88,7 @@
                         <div class="col-span-full text-center py-20 text-gray-500">
                             <div class="flex justify-center mb-4 opacity-50"><i data-lucide="ghost" width="48" height="48"></i></div>
                             <p class="mb-2">No active games found matching "${query}".</p>
-                            <a href="create-event.php" class="text-brand-accent font-bold hover:underline">Host one yourself!</a>
+                            <a href="create_event.php" class="text-brand-accent font-bold hover:underline">Host one yourself!</a>
                         </div>`;
                     if(window.lucide) lucide.createIcons();
                 }

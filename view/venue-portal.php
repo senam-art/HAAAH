@@ -6,7 +6,7 @@ require_once PROJECT_ROOT . '/controllers/user_controller.php';
 
 // 1. Fetch User Data
 $initials = 'U';
-$profile_pic = null; // Initialize variable for avatar
+$profile_pic = null; 
 $is_logged_in = isset($_SESSION['user_id']);
 
 if ($is_logged_in) {
@@ -14,25 +14,17 @@ if ($is_logged_in) {
     $current_user = $userController->get_user_by_id_ctr($_SESSION['user_id']);
     
     if ($current_user) {
-        // Get Initials
         $initials = strtoupper(substr($current_user['user_name'], 0, 1));
         
-        // Check for Profile Image in JSON details
         if (!empty($current_user['profile_details'])) {
             $details = json_decode($current_user['profile_details'], true);
             if (is_array($details) && !empty($details['profile_image'])) {
-                // ✅ Make path browser-accessible dynamically
-                $profile_pic = UPLOADS_URL . str_replace('/uploads', '', $details['profile_image']);
+                // ✅ FIX: Use the raw path from DB (e.g., "../uploads/users/img.jpg")
+                $profile_pic = $details['profile_image'];
             }
         }
     }
 }
-
-// Fallback if no profile image
-if (!$profile_pic) {
-    $profile_pic = 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80';
-}
-
 
 // 2. Fetch All Venues
 $venues = get_all_venues_ctr(); 
@@ -47,14 +39,7 @@ $venue_count = is_array($venues) ? count($venues) : 0;
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { brand: { dark: '#0f0f13', card: '#1a1a23', accent: '#3dff92', purple: '#7000ff' } },
-                    fontFamily: { sans: ['Inter', 'sans-serif'] }
-                }
-            }
-        }
+        tailwind.config = { theme: { extend: { colors: { brand: { dark: '#0f0f13', card: '#1a1a23', accent: '#3dff92', purple: '#7000ff' } }, fontFamily: { sans: ['Inter', 'sans-serif'] } } } }
     </script>
     <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }</style>
 </head>
@@ -73,7 +58,6 @@ $venue_count = is_array($venues) ? count($venues) : 0;
         
         <div class="flex items-center gap-4">
             <?php if($is_logged_in): ?>
-                <!-- Link to Management Dashboard -->
                 <a href="manage_venues.php" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-brand-card border border-white/10 hover:border-brand-purple hover:text-brand-purple text-gray-300 font-bold rounded-full text-sm transition-all">
                     <i data-lucide="layout-dashboard" size="16"></i> My Venues
                 </a>
@@ -93,7 +77,6 @@ $venue_count = is_array($venues) ? count($venues) : 0;
                     <?php endif; ?>
                 </div>
                 
-                <!-- Logout Button -->
                 <a href="../actions/logout.php" class="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-red-400 transition-colors" title="Log Out">
                     <i data-lucide="log-out" size="18"></i>
                 </a>
@@ -106,7 +89,6 @@ $venue_count = is_array($venues) ? count($venues) : 0;
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 lg:px-8 py-10">
         
-        <!-- Header -->
         <div class="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
             <div>
                 <h2 class="text-3xl font-black text-white mb-2">Find Your Pitch</h2>
@@ -132,24 +114,23 @@ $venue_count = is_array($venues) ? count($venues) : 0;
                         $v_id = $venue['venue_id'];
                         $v_name = htmlspecialchars($venue['name']);
                         $v_addr = htmlspecialchars($venue['address']);
-                        $v_img = htmlspecialchars($venue['cover_image']);
+                        
+                        // ✅ FIX: Use raw path (e.g. "../uploads/...") or fallback
+                        $v_img = !empty($venue['cover_image']) ? $venue['cover_image'] : 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80';
+                        
                         $v_rate = number_format(floatval($venue['cost_per_hour']), 2);
                         $v_rating = isset($venue['rating']) ? number_format($venue['rating'], 1) : null;
                         $link = "venue-profile.php?id=$v_id";
                     ?>
                     
-                  <a href="<?= htmlspecialchars($link) ?>" class="group bg-brand-card rounded-2xl border border-white/5 overflow-hidden hover:border-brand-accent/50 transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-brand-accent/10 flex flex-col">
+                    <a href="<?php echo $link; ?>" class="group bg-brand-card rounded-2xl border border-white/5 overflow-hidden hover:border-brand-accent/50 transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-brand-accent/10 flex flex-col">
                         <div class="relative h-48 w-full overflow-hidden">
-                            <?php 
-                            // Ensure the image path works on both local and live servers
-                            $v_img_url = !empty($v_img) ? UPLOADS_URL . str_replace('/uploads', '', $v_img) : 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80';
-                            ?>
-                            <img src="<?= htmlspecialchars($v_img_url) ?>" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                            <img src="<?php echo htmlspecialchars($v_img); ?>" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                             <div class="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent opacity-80"></div>
                             
-                            <?php if (!empty($v_rating)): ?>
+                            <?php if ($v_rating): ?>
                                 <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
-                                    <span class="text-xs font-bold text-white"><?= htmlspecialchars($v_rating) ?></span>
+                                    <span class="text-xs font-bold text-white"><?php echo $v_rating; ?></span>
                                     <i data-lucide="star" size="10" class="text-yellow-500 fill-yellow-500"></i>
                                 </div>
                             <?php endif; ?>
