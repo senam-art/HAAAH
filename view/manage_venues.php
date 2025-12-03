@@ -53,6 +53,11 @@ foreach($my_venues as $v) { if($v['is_active']) $active_count++; }
             <a href="create_venue.php" class="flex items-center gap-2 px-4 py-2 bg-brand-purple hover:bg-purple-600 shadow-lg shadow-brand-purple/20 rounded-lg text-sm font-bold transition-all transform hover:scale-105">
                 <i data-lucide="plus" size="16"></i> Add Venue
             </a>
+            
+            <!-- [NEW] Logout Button -->
+            <a href="../actions/logout.php" class="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-red-400 transition-colors border border-transparent hover:border-white/5" title="Log Out">
+                <i data-lucide="log-out" size="18"></i>
+            </a>
         </div>
     </nav>
 

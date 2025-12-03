@@ -13,22 +13,27 @@ class User extends db_connection
     }
 
     /**
-     * Create a new user (Sign Up)
+     * Create User (Enhanced for Roles & Traits)
+     * Matches your original naming convention.
      */
-    public function create_user($first_name, $last_name, $email, $username, $password, $location)
+    public function create_user($first_name, $last_name, $email, $username, $password, $location, $role = 0, $profile_details = null)
     {
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
-        // Matches your DB columns exactly: id, first_name, last_name, email, user_name, password, location, role, created_at
-        $sql = "INSERT INTO users (first_name, last_name, email, user_name, password, location, role, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, 0, NOW())";
-
-        if (!$this->db) {
-            $this->db_connect();
+        // Use Prepared Statements (Security Best Practice)
+        if ($profile_details) {
+            // Player with traits
+            $sql = "INSERT INTO users (first_name, last_name, user_name, email, password, location, role, profile_details, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param("ssssssis", $first_name, $last_name, $username, $email, $hashed_password, $location, $role, $profile_details);
+        } else {
+            // Manager / Admin (No traits)
+            $sql = "INSERT INTO users (first_name, last_name, user_name, email, password, location, role, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param("ssssssi", $first_name, $last_name, $username, $email, $hashed_password, $location, $role);
         }
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->bind_param("ssssss", $first_name, $last_name, $email, $username, $hashed_password, $location);
 
         if ($stmt->execute()) {
             return $this->db->insert_id;
@@ -154,5 +159,7 @@ class User extends db_connection
         
         return $stmt->execute();
     }
+
+    
 }
 ?>

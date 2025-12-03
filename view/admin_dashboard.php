@@ -1,12 +1,16 @@
 <?php
 session_start();
+
+// Define PROJECT_ROOT fallback
+if (!defined('PROJECT_ROOT')) {
+    define('PROJECT_ROOT', dirname(__DIR__));
+}
+
 require_once __DIR__ . '/../settings/core.php';
 require_once PROJECT_ROOT . '/controllers/admin_controller.php';
 
-// 1. Security Check (Admin Role = 2)
-// Updated to use $_SESSION['role'] matching your Login Controller
+// 1. Security Check
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] != 2) {
-    // Not an admin? Bounce to login.
     header("Location: login.php");
     exit();
 }
@@ -14,8 +18,13 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
 // 2. Fetch Data
 $stats = get_admin_stats_ctr();
 $pending_events = get_pending_events_ctr();
+$active_events = get_active_events_ctr(); // Fetch Active Events
 $all_venues = get_all_venues_admin_ctr();
 $deleted_venues = get_deleted_venues_ctr();
+
+// 3. Capture Flash Message
+$flash = isset($_SESSION['flash']) ? $_SESSION['flash'] : null;
+unset($_SESSION['flash']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -28,7 +37,12 @@ $deleted_venues = get_deleted_venues_ctr();
     <script>
         tailwind.config = { theme: { extend: { colors: { brand: { dark: '#0f0f13', card: '#1a1a23', accent: '#3dff92', purple: '#7000ff', red: '#ef4444' } }, fontFamily: { sans: ['Inter', 'sans-serif'] } } } }
     </script>
-    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }</style>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); 
+        body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }
+        .toast-animate { animation: slideIn 0.5s ease-out forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
 </head>
 <body class="selection:bg-brand-accent selection:text-black bg-brand-dark">
 
@@ -42,7 +56,7 @@ $deleted_venues = get_deleted_venues_ctr();
             
             <nav class="flex-1 p-4 space-y-2">
                 <button onclick="showTab('events')" id="nav-events" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-colors bg-brand-red text-white">
-                    <i data-lucide="alert-circle" size="18"></i> Pending Events
+                    <i data-lucide="alert-circle" size="18"></i> Events Management
                     <?php if($stats['pending_events'] > 0): ?>
                         <span class="ml-auto bg-white text-brand-red px-2 py-0.5 rounded-full text-xs"><?php echo $stats['pending_events']; ?></span>
                     <?php endif; ?>
@@ -90,47 +104,159 @@ $deleted_venues = get_deleted_venues_ctr();
                 </div>
             </div>
 
-            <!-- TAB 1: PENDING EVENTS -->
+            <!-- TAB 1: EVENTS MANAGEMENT (Active + Pending) -->
             <div id="tab-events" class="tab-content">
-                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="calendar" class="text-brand-red"></i> Pending Events</h2>
                 
-                <?php if (empty($pending_events)): ?>
-                    <div class="p-12 text-center border-2 border-dashed border-white/10 rounded-2xl text-gray-500">
-                        No events waiting for approval.
-                    </div>
-                <?php else: ?>
-                    <div class="space-y-4">
-                        <?php foreach ($pending_events as $event): ?>
-                            <div class="bg-brand-card border border-white/5 p-6 rounded-xl flex items-center justify-between group hover:border-white/10 transition-all">
-                                <div>
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-brand-accent text-xs font-bold uppercase tracking-wider">Event #<?php echo $event['event_id']; ?></span>
-                                        <span class="text-gray-500 text-xs">• <?php echo htmlspecialchars($event['venue_name']); ?></span>
+                <!-- SECTION: ACTIVE EVENTS -->
+                <div class="mb-12">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                        <i data-lucide="zap" class="text-brand-accent"></i> Live & Active Events
+                    </h2>
+
+                    <?php if (empty($active_events)): ?>
+                        <div class="p-8 text-center border border-white/5 bg-white/5 rounded-xl text-gray-500 text-sm">
+                            No active upcoming events.
+                        </div>
+                    <?php else: ?>
+                        <div class="space-y-4">
+                            <?php foreach ($active_events as $event): ?>
+                                <div class="bg-brand-card border border-white/5 p-5 rounded-xl flex flex-col md:flex-row gap-6 opacity-90 hover:opacity-100 hover:border-brand-accent/30 transition-all">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="bg-brand-accent text-black px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Active</span>
+                                            <span class="text-gray-500 text-xs font-mono">#<?php echo $event['event_id']; ?></span>
+                                            <span class="bg-brand-purple/20 text-brand-purple px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><?php echo htmlspecialchars($event['sport'] ?? 'Sport'); ?></span>
+                                        </div>
+                                        <h3 class="text-xl font-bold text-white mb-2"><?php echo htmlspecialchars($event['title']); ?></h3>
+                                        
+                                        <div class="flex items-center gap-4 text-xs text-gray-400">
+                                            <span class="flex items-center gap-1 text-white"><i data-lucide="calendar" size="12" class="text-brand-accent"></i> <?php echo date('M d, Y', strtotime($event['event_date'])); ?></span>
+                                            <span class="flex items-center gap-1 text-white"><i data-lucide="clock" size="12" class="text-brand-accent"></i> <?php echo date('g:i A', strtotime($event['event_time'])); ?></span>
+                                            <span>• <?php echo htmlspecialchars($event['duration']); ?>h</span>
+                                            <span>• <?php echo htmlspecialchars($event['format']); ?></span>
+                                        </div>
                                     </div>
-                                    <h3 class="text-xl font-bold text-white mb-1"><?php echo htmlspecialchars($event['title']); ?></h3>
-                                    <p class="text-sm text-gray-400">
-                                        Organizer: <span class="text-white"><?php echo htmlspecialchars($event['organizer_name']); ?></span> (<?php echo htmlspecialchars($event['organizer_email']); ?>)
-                                    </p>
-                                    <div class="mt-2 text-xs font-mono text-gray-500 bg-black/20 inline-block px-2 py-1 rounded">
-                                        <?php echo $event['event_date'] . ' @ ' . $event['event_time']; ?>
+                                    
+                                    <div class="flex items-center gap-3 border-l border-white/5 pl-6">
+                                        <a href="venue-profile.php?id=<?php echo $event['venue_id']; ?>" target="_blank" class="text-xs font-bold text-brand-purple hover:underline flex items-center gap-1">
+                                            <i data-lucide="map-pin" size="12"></i> <?php echo htmlspecialchars($event['venue_name']); ?>
+                                        </a>
+                                        <!-- Only Cancel Action needed for Active events -->
+                                        <form action="../actions/admin_action.php" method="POST" onsubmit="return confirm('WARNING: Cancelling an active event will notify players. Proceed?');">
+                                            <input type="hidden" name="action" value="reject_event">
+                                            <input type="hidden" name="id" value="<?php echo $event['event_id']; ?>">
+                                            <button type="submit" class="px-3 py-1.5 rounded bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white font-bold text-xs transition-colors flex items-center gap-1">
+                                                <i data-lucide="slash" size="12"></i> Cancel
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
-                                <div class="flex gap-3">
-                                    <form action="../actions/admin_action.php" method="POST">
-                                        <input type="hidden" name="action" value="reject_event">
-                                        <input type="hidden" name="id" value="<?php echo $event['event_id']; ?>">
-                                        <button type="submit" class="px-4 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white font-bold text-sm transition-colors">Reject</button>
-                                    </form>
-                                    <form action="../actions/admin_action.php" method="POST">
-                                        <input type="hidden" name="action" value="approve_event">
-                                        <input type="hidden" name="id" value="<?php echo $event['event_id']; ?>">
-                                        <button type="submit" class="px-6 py-2 rounded-lg bg-brand-accent text-black font-bold text-sm hover:bg-[#2fe080] transition-colors shadow-lg shadow-brand-accent/10">Approve & Publish</button>
-                                    </form>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- SECTION: PENDING EVENTS -->
+                <div>
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                        <i data-lucide="alert-circle" class="text-brand-red"></i> Pending Approvals
+                    </h2>
+                    
+                    <?php if (empty($pending_events)): ?>
+                        <div class="p-12 text-center border-2 border-dashed border-white/10 rounded-2xl text-gray-500">
+                            No events waiting for approval.
+                        </div>
+                    <?php else: ?>
+                        <div class="space-y-4">
+                            <?php foreach ($pending_events as $event): ?>
+                                <div class="bg-brand-card border border-white/5 p-6 rounded-xl flex flex-col md:flex-row gap-6 group hover:border-white/10 transition-all">
+                                    
+                                    <!-- Event Info Column -->
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="bg-brand-red/20 text-brand-red px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Reviewing</span>
+                                            <span class="text-gray-500 text-xs font-mono">ID: <?php echo $event['event_id']; ?></span>
+                                            <span class="bg-brand-purple/20 text-brand-purple px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                                                <?php echo htmlspecialchars($event['sport'] ?? 'Sport'); ?>
+                                            </span>
+                                        </div>
+                                        
+                                        <h3 class="text-2xl font-bold text-white mb-4"><?php echo htmlspecialchars($event['title']); ?></h3>
+                                        
+                                        <!-- Detailed Info Grid -->
+                                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-black/20 rounded-lg border border-white/5 mb-4">
+                                            <div>
+                                                <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Date</div>
+                                                <div class="text-sm font-bold text-white flex items-center gap-1">
+                                                    <i data-lucide="calendar" size="12" class="text-brand-accent"></i>
+                                                    <?php echo date('M d, Y', strtotime($event['event_date'])); ?>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Time</div>
+                                                <div class="text-sm font-bold text-white flex items-center gap-1">
+                                                    <i data-lucide="clock" size="12" class="text-brand-accent"></i>
+                                                    <?php echo date('g:i A', strtotime($event['event_time'])); ?>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Details</div>
+                                                <div class="text-sm font-bold text-white">
+                                                    <?php echo htmlspecialchars($event['duration']); ?>h • <?php echo htmlspecialchars($event['format']); ?>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Cost</div>
+                                                <div class="text-sm font-bold text-brand-accent">
+                                                    <?php echo htmlspecialchars($event['cost_per_player']); ?> GHS
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-sm text-gray-400">
+                                            <div class="flex items-center gap-2">
+                                                <i data-lucide="user" size="14"></i> 
+                                                <span>Organizer: <span class="text-white font-bold"><?php echo htmlspecialchars($event['organizer_name']); ?></span></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <i data-lucide="map-pin" size="14"></i> 
+                                                <span>Venue: 
+                                                    <a href="venue-profile.php?id=<?php echo $event['venue_id']; ?>" target="_blank" class="text-brand-purple hover:text-white hover:underline font-bold transition-colors">
+                                                        <?php echo htmlspecialchars($event['venue_name']); ?>
+                                                    </a>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Actions Column -->
+                                    <div class="flex flex-col justify-center gap-3 min-w-[160px] border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
+                                        <a href="venue-profile.php?id=<?php echo $event['venue_id']; ?>" target="_blank" class="px-4 py-2 rounded-lg bg-white/5 text-gray-300 font-bold text-xs hover:bg-white/10 hover:text-white transition-colors flex items-center justify-center gap-2">
+                                            <i data-lucide="external-link" size="14"></i> Inspect Venue
+                                        </a>
+                                        
+                                        <form action="../actions/admin_action.php" method="POST" onsubmit="return confirm('Are you sure you want to REJECT this event? This action cannot be undone.');">
+                                            <input type="hidden" name="action" value="reject_event">
+                                            <input type="hidden" name="id" value="<?php echo $event['event_id']; ?>">
+                                            <button type="submit" class="w-full px-4 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                                                <i data-lucide="x-circle" size="16"></i> Reject
+                                            </button>
+                                        </form>
+                                        
+                                        <form action="../actions/admin_action.php" method="POST">
+                                            <input type="hidden" name="action" value="approve_event">
+                                            <input type="hidden" name="id" value="<?php echo $event['event_id']; ?>">
+                                            <button type="submit" class="w-full px-4 py-2 rounded-lg bg-brand-accent text-black font-bold text-sm hover:bg-[#2fe080] transition-colors shadow-lg shadow-brand-accent/10 flex items-center justify-center gap-2">
+                                                <i data-lucide="check-circle" size="16"></i> Approve
+                                            </button>
+                                        </form>
+                                    </div>
+
                                 </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <!-- TAB 2: MANAGE VENUES -->
@@ -214,6 +340,45 @@ $deleted_venues = get_deleted_venues_ctr();
 
         </main>
     </div>
+
+    <!-- FLASH MESSAGE -->
+    <?php if ($flash): ?>
+    <div id="flash-message" class="fixed bottom-6 right-6 z-50 toast-animate max-w-sm w-full">
+        <div class="bg-brand-card border-l-4 <?php echo ($flash['type'] == 'success') ? 'border-brand-accent' : ($flash['type'] == 'warning' ? 'border-yellow-500' : 'border-red-500'); ?> p-4 rounded-r shadow-2xl flex items-start gap-3 relative">
+            
+            <div class="<?php echo ($flash['type'] == 'success') ? 'text-brand-accent' : ($flash['type'] == 'warning' ? 'text-yellow-500' : 'text-red-500'); ?>">
+                <?php if($flash['type'] == 'success'): ?>
+                    <i data-lucide="check-circle" size="24"></i>
+                <?php elseif($flash['type'] == 'warning'): ?>
+                    <i data-lucide="alert-triangle" size="24"></i>
+                <?php else: ?>
+                    <i data-lucide="x-circle" size="24"></i>
+                <?php endif; ?>
+            </div>
+            
+            <div>
+                <h4 class="font-bold text-white text-sm"><?php echo $flash['title']; ?></h4>
+                <p class="text-gray-400 text-xs mt-1"><?php echo $flash['message']; ?></p>
+            </div>
+
+            <button onclick="document.getElementById('flash-message').remove()" class="absolute top-2 right-2 text-gray-500 hover:text-white">
+                <i data-lucide="x" size="14"></i>
+            </button>
+        </div>
+    </div>
+    <script>
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const flash = document.getElementById('flash-message');
+            if(flash) {
+                flash.style.opacity = '0';
+                flash.style.transform = 'translateY(10px)';
+                flash.style.transition = 'all 0.5s ease';
+                setTimeout(() => flash.remove(), 500);
+            }
+        }, 5000);
+    </script>
+    <?php endif; ?>
 
     <script>
         lucide.createIcons();

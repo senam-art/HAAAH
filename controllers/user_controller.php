@@ -25,9 +25,9 @@ class UserController {
 
     // --- ACTIONS ---
 
-    /**
+   /**
      * Register User Action
-     * Matches the method name called in debug_test.php
+     * Accepts POST data array
      */
     public function register_user_ctr($data) {
         $user = new User();
@@ -42,22 +42,38 @@ class UserController {
             return ['success' => false, 'message' => 'Email already exists.'];
         }
 
-        // 3. Create User
+        // 3. Prepare Role & Profile Data
+        $role = isset($data['role']) ? intval($data['role']) : 0;
+        $profile_json = null;
+
+        // Only process traits if it's a Player (Role 0)
+        if ($role === 0) {
+            $traits_data = [
+                'positions' => isset($data['positions']) ? $data['positions'] : [],
+                'traits' => isset($data['traits']) ? $data['traits'] : []
+            ];
+            $profile_json = json_encode($traits_data);
+        }
+
+        // 4. Create User (Calling the updated Model method)
         $newId = $user->create_user(
             $data['first_name'],
             $data['last_name'],
             $data['email'],
             $data['user_name'],
             $data['password'],
-            $data['location'] ?? ''
+            $data['location'] ?? '',
+            $role,
+            $profile_json
         );
 
         if ($newId) {
             // Start session immediately
             if (session_status() === PHP_SESSION_NONE) session_start();
             $_SESSION['user_id'] = $newId;
-            $_SESSION['role'] = 0;
+            $_SESSION['role'] = $role;
             $_SESSION['user_name'] = $data['user_name'];
+            $_SESSION['email'] = $data['email'];
             
             return ['success' => true, 'id' => $newId];
         }
@@ -65,12 +81,18 @@ class UserController {
         return ['success' => false, 'message' => 'Registration failed (Database Error).'];
     }
 
-    /**
+/**
      * Login User Action
+     * UPDATED: Now sets $_SESSION variables on success.
      */
     public function login_user_ctr($usernameOrEmail, $password) {
-        // 1. Find User
-        $userData = $this->get_user_by_username_or_email($usernameOrEmail);
+        $user = new User();
+
+        // 1. Find User (Try Username, then Email)
+        $userData = $user->get_user_by_username($usernameOrEmail);
+        if (!$userData) {
+            $userData = $user->get_user_by_email($usernameOrEmail);
+        }
         
         if (!$userData) {
             return ['success' => false, 'message' => 'User not found.'];
@@ -79,35 +101,18 @@ class UserController {
         // 2. Verify Password
         if (password_verify($password, $userData['password'])) {
             
-            // 3. Set Session
+            // 3. SET SESSION (The Fix)
             if (session_status() === PHP_SESSION_NONE) session_start();
             
-            // Use 'id' as per your database schema
-            $_SESSION['user_id'] = $userData['id']; 
+            $_SESSION['user_id'] = $userData['id'];
             $_SESSION['role'] = $userData['role'];
-            $_SESSION['user_email'] = $userData['email'];
             $_SESSION['user_name'] = $userData['user_name'];
+            $_SESSION['email'] = $userData['email'];
 
-            // 4. Intelligent Redirect
-            $redirect = '../view/homepage.php'; // Default
-            
-            if (isset($_SESSION['redirect_to'])) {
-                $redirect = $_SESSION['redirect_to'];
-                unset($_SESSION['redirect_to']);
-            } elseif ($userData['role'] == 1) {
-                $redirect = '../admin/dashboard.php';
-            }
-
-            return [
-                'success' => true, 
-                'message' => 'Login successful',
-                'redirect' => $redirect,
-                'user_id' => $userData['id']
-            ];
+            return ['success' => true, 'user' => $userData];
         }
-
-        return ['success' => false, 'message' => 'Incorrect password.'];
     }
+
 
     /**
      * Update Profile Action

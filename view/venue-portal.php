@@ -6,13 +6,24 @@ require_once PROJECT_ROOT . '/controllers/user_controller.php';
 
 // 1. Fetch User Data
 $initials = 'U';
+$profile_pic = null; // Initialize variable for avatar
 $is_logged_in = isset($_SESSION['user_id']);
 
 if ($is_logged_in) {
     $userController = new UserController();
     $current_user = $userController->get_user_by_id_ctr($_SESSION['user_id']);
+    
     if ($current_user) {
+        // Get Initials
         $initials = strtoupper(substr($current_user['user_name'], 0, 1));
+        
+        // Check for Profile Image in JSON details
+        if (!empty($current_user['profile_details'])) {
+            $details = json_decode($current_user['profile_details'], true);
+            if (is_array($details) && !empty($details['profile_image'])) {
+                $profile_pic = $details['profile_image'];
+            }
+        }
     }
 }
 
@@ -66,9 +77,19 @@ $venue_count = is_array($venues) ? count($venues) : 0;
             </a>
             
             <?php if($is_logged_in): ?>
-                <div class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm text-white border-2 border-brand-card">
-                    <?php echo $initials; ?>
+                <!-- User Avatar / Initials -->
+                <div class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm text-white border-2 border-brand-card overflow-hidden relative">
+                    <?php if ($profile_pic): ?>
+                        <img src="<?php echo htmlspecialchars($profile_pic); ?>" alt="Profile" class="w-full h-full object-cover">
+                    <?php else: ?>
+                        <?php echo $initials; ?>
+                    <?php endif; ?>
                 </div>
+                
+                <!-- Logout Button -->
+                <a href="../actions/logout.php" class="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-red-400 transition-colors" title="Log Out">
+                    <i data-lucide="log-out" size="18"></i>
+                </a>
             <?php else: ?>
                 <a href="login.php" class="text-sm font-bold text-white hover:text-brand-accent">Login</a>
             <?php endif; ?>

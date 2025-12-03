@@ -56,10 +56,11 @@ function update_venue_ctr($data, $files) {
 
     // 3. Images (Merge existing with new)
     $existing_images = isset($data['existing_images']) ? $data['existing_images'] : []; // Array of URLs
-    
-    // Handle New Uploads
+   // Handle New Uploads
     $new_images = [];
-    $upload_dir = dirname(PROJECT_ROOT) . '/uploads/venues/';
+
+    // ✅ Use canonical constants
+    $upload_dir = UPLOADS_FS . '/venues/';
     if (!file_exists($upload_dir)) mkdir($upload_dir, 0777, true);
 
     if (isset($files['venue_images']) && !empty($files['venue_images']['name'][0])) {
@@ -69,12 +70,13 @@ function update_venue_ctr($data, $files) {
                 $ext = pathinfo($filename, PATHINFO_EXTENSION);
                 $new_name = uniqid('venue_', true) . '.' . $ext;
                 if (move_uploaded_file($tmp_name, $upload_dir . $new_name)) {
-                    $new_images[] = '/uploads/venues/' . $new_name;
+                    // ✅ Browser-accessible URL
+                    $new_images[] = UPLOADS_URL . '/venues/' . $new_name;
                 }
             }
         }
     }
-    
+
     // Combine: Existing first (preserved order), then new
     $final_images = array_merge($existing_images, $new_images);
     $images_json = json_encode($final_images);
@@ -172,41 +174,45 @@ function add_venue_ctr($data, $files) {
     }
     $amenities_list = array_unique(array_filter($amenities_list));
     $amenities_json = json_encode(array_values($amenities_list));
+// 4. Handle Image Uploads (OUTSIDE PROJECT DIRECTORY)
+$uploaded_urls = [];
 
-    // 4. Handle Image Uploads (OUTSIDE PROJECT DIRECTORY)
-    $uploaded_urls = [];
-    
-    // FIX: Step out of PROJECT_ROOT to find the sibling 'uploads' folder
-    // Example: If project is C:/xampp/htdocs/HAAAH, this points to C:/xampp/htdocs/uploads/venues/
-    $upload_dir = dirname(PROJECT_ROOT) . '/uploads/venues/';
-    
-    // Create directory if not exists (Recursive)
-    if (!file_exists($upload_dir)) {
-        if (!mkdir($upload_dir, 0777, true)) {
-            error_log("Failed to create upload directory: " . $upload_dir);
-            return false; // Fail early if we can't save files
-        }
+// ✅ Build upload directory from canonical constant
+$upload_dir = UPLOADS_FS . '/venues';
+
+// ✅ Create directory if it doesn't exist
+if (!is_dir($upload_dir)) {
+    if (!mkdir($upload_dir, 0755, true)) {
+        error_log("Failed to create upload directory: " . $upload_dir);
+        return false;
     }
+}
 
-    if (isset($files['venue_images']) && !empty($files['venue_images']['name'][0])) {
-        foreach ($files['venue_images']['name'] as $key => $filename) {
-            $tmp_name = $files['venue_images']['tmp_name'][$key];
-            $error = $files['venue_images']['error'][$key];
-            
-            if ($error === UPLOAD_ERR_OK) {
-                // Generate unique name
-                $ext = pathinfo($filename, PATHINFO_EXTENSION);
-                $new_name = uniqid('venue_', true) . '.' . $ext;
-                $destination = $upload_dir . $new_name;
-                
-                if (move_uploaded_file($tmp_name, $destination)) {
-                    // Store ABSOLUTE WEB PATH
-                    // Assuming 'uploads' is in the server root (htdocs), this URL works from anywhere
-                    $uploaded_urls[] = '/uploads/venues/' . $new_name;
-                }
+if (
+    isset($files['venue_images']) &&
+    !empty($files['venue_images']['name'][0])
+) {
+    foreach ($files['venue_images']['name'] as $key => $filename) {
+
+        $tmp_name = $files['venue_images']['tmp_name'][$key];
+        $error    = $files['venue_images']['error'][$key];
+
+        if ($error === UPLOAD_ERR_OK && is_uploaded_file($tmp_name)) {
+
+            // ✅ Sanitize & generate unique filename
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            $new_name = uniqid('venue_', true) . '.' . $ext;
+
+            $destination = $upload_dir . '/' . $new_name;
+
+            if (move_uploaded_file($tmp_name, $destination)) {
+                // ✅ Store WEB URL (not filesystem path)
+                $uploaded_urls[] = UPLOADS_URL . '/venues/' . $new_name;
             }
         }
     }
+}
+
     
     // Fallback image
     if (empty($uploaded_urls)) {

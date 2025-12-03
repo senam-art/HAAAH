@@ -29,6 +29,18 @@ class Admin extends db_connection
         return $stats;
     }
 
+      // Fetch Active/Approved Events
+    public function get_active_events() {
+        $sql = "SELECT e.*, v.name as venue_name, u.user_name as organizer_name 
+                FROM events e 
+                JOIN venues v ON e.venue_id = v.venue_id 
+                JOIN users u ON e.organizer_id = u.id 
+                WHERE e.is_approved = 1 AND e.status != 'cancelled' 
+                ORDER BY e.event_date ASC, e.event_time ASC";
+        return $this->db_fetch_all($sql);
+    }
+
+
     // --- EVENTS MANAGEMENT ---
     public function get_pending_events() {
         $sql = "SELECT e.*, v.name as venue_name, u.user_name as organizer_name, u.email as organizer_email 

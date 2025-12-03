@@ -47,7 +47,7 @@ class Venue extends db_connection
     {
        // Default: is_active = 1 (Pending/Active), is_deleted = 0
         $sql = "INSERT INTO venues (owner_id, name, address, latitude, longitude, cost_per_hour, description, capacity, amenities, image_urls, phone, email, is_active, is_deleted, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW())";
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())";
         
         
         $stmt = $this->db->prepare($sql);
@@ -135,5 +135,52 @@ class Venue extends db_connection
             }
         }
         return $blocked_hours;
+    }
+
+
+    // --- AVAILABILITY ---
+
+    /**
+     * Get all confirmed bookings for a venue on a specific date.
+     * Returns start times and durations so the controller can calculate blocked slots.
+     */
+    public function check_availability($venue_id, $date) {
+        // Use a Prepared Statement for security
+        $sql = "SELECT event_time, duration 
+                FROM events 
+                WHERE venue_id = ? 
+                AND event_date = ? 
+                AND status != 'cancelled'
+                ORDER BY event_time ASC";
+        
+        // Prepare
+        $stmt = $this->db->prepare($sql);
+        
+        // Bind: 'i' for integer (venue_id), 's' for string (date)
+        $stmt->bind_param("is", $venue_id, $date);
+        
+        // Execute & Fetch
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    // --- GENERAL VENUE METHODS ---
+    
+    public function get_venue_details($venue_id) {
+        $sql = "SELECT * FROM venues WHERE venue_id = ? AND is_deleted = 0 LIMIT 1";
+        
+        // Prepare
+        $stmt = $this->db->prepare($sql);
+        
+        // Bind: 'i' for integer (venue_id)
+        $stmt->bind_param("i", $venue_id);
+        
+        // Execute & Fetch
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        return $result->fetch_assoc();
     }
 }

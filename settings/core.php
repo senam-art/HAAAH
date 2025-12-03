@@ -1,14 +1,43 @@
 <?php
-// settings/core.php
 
 // 1. Start Session (Safe Check)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Root of the project (HAAAH)
 // 2. Define Root Path (Required for classes to find files)
 if (!defined('PROJECT_ROOT')) {
     define('PROJECT_ROOT', dirname(__DIR__));
+}
+
+
+// Filesystem uploads directory (sibling of HAAAH)
+define('UPLOADS_FS', dirname(PROJECT_ROOT) . '/uploads');
+
+// Browser-accessible uploads directory
+define('UPLOADS_URL', '/uploads');
+
+
+/**
+ * Redirect user if already logged in
+ */
+function redirectIfLoggedIn()
+{
+    if (!isset($_SESSION['user_id'])) {
+        return; // user not logged in → do nothing
+    }
+
+    $role = isset($_SESSION['role']) ? intval($_SESSION['role']) : 0;
+
+    if ($role === 1) {
+        header("Location: venue-profile.php");
+    } elseif ($role === 2) {
+        header("Location: admin_dashboard.php");
+    } else {
+        header("Location: homepage.php");
+    }
+    exit();
 }
 
 // --- HELPER FUNCTIONS ---

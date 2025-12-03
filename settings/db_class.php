@@ -139,8 +139,6 @@ class db_connection
 		
 		//return a record
 		return mysqli_num_rows($this->results);
-
 	}
-	
 }
 ?>

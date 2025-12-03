@@ -1,153 +1,162 @@
-<?php
-require_once __DIR__ . '/../settings/core.php';
-hasLoggedIn();
+<?php 
+
+require_once __DIR__ . '/../settings/core.php'; 
+redirectIfLoggedIn()
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Account - Haaah Sports</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        brand: { dark: '#0f0f13', card: '#1a1a23', accent: '#3dff92', purple: '#7000ff' }
-                    },
+                    colors: { brand: { dark: '#0f0f13', card: '#1a1a23', accent: '#3dff92', purple: '#7000ff' } },
                     fontFamily: { sans: ['Inter', 'sans-serif'] }
                 }
             }
         }
     </script>
-    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }
-        /* Make scroll bar visible and styled */
-        body { scrollbar-color: rgba(255,255,255,0.08) rgba(255,255,255,0.02); }
-        ::-webkit-scrollbar { width: 10px; height: 10px; }
-        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
-    </style>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }</style>
 </head>
-<body class="selection:bg-brand-accent selection:text-black min-h-screen flex flex-col relative overflow-auto">
+<body class="selection:bg-brand-accent selection:text-black min-h-screen flex flex-col relative pb-20">
 
-    <!-- Background Elements -->
-    <div class="absolute inset-0 z-0">
-        <img src="../images/backgroundimage_landing.jpeg" class="w-full h-full object-cover opacity-60 grayscale">
-        <div class="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/20 to-brand-dark/50"></div>
-    </div>
-
-    <!-- Nav -->
     <nav class="relative z-10 px-6 py-6 flex justify-between items-center">
-        <a href="landing.html" class="font-black tracking-tighter text-2xl text-white">
-            HAAAH<span class="text-brand-accent text-base font-normal tracking-widest ml-1">SPORTS</span>
-        </a>
-        <a href="venue-portal.html" class="hidden sm:block text-xs font-bold text-gray-400 hover:text-white border border-white/10 px-3 py-1.5 rounded-full">
-            Own a pitch? Register here
-        </a>
+        <a href="landing.html" class="font-black tracking-tighter text-2xl text-white">HAAAH<span class="text-brand-accent text-base font-normal tracking-widest ml-1">SPORTS</span></a>
+        <a href="login.php" class="text-sm font-bold text-gray-400 hover:text-white transition-colors">Sign In</a>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex items-center justify-center px-4 relative z-10 py-12">
+    <main class="flex-1 flex items-center justify-center px-4 relative z-10 py-8">
         <div class="w-full max-w-lg bg-brand-card/90 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-            
             <div class="text-center mb-8">
                 <h1 class="text-3xl font-black mb-2">Join the Squad</h1>
-                <p class="text-gray-400 text-sm">Create your player profile to find games near you.</p>
+                <p class="text-gray-400 text-sm">Create your profile to get started.</p>
             </div>
 
-            <form id="signupForm" class="space-y-4" novalidate>
-                <div id="formMessage" class="text-center text-sm hidden mb-4"></div>
+            <form id="signupForm" class="space-y-5" novalidate>
+                <div id="formMessage" class="text-center text-sm hidden p-3 rounded-xl mb-4 font-bold"></div>
+
+                <!-- ROLE SELECTOR -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">I am a...</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="role" value="0" checked class="peer sr-only" onchange="togglePlayerFields()">
+                            <div class="p-4 rounded-xl bg-brand-dark border border-white/10 text-center transition-all peer-checked:border-brand-accent peer-checked:bg-brand-accent/10 peer-checked:text-brand-accent hover:bg-white/5">
+                                <i data-lucide="user" class="mx-auto mb-1" size="20"></i>
+                                <span class="text-sm font-bold">Player</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="role" value="1" class="peer sr-only" onchange="togglePlayerFields()">
+                            <div class="p-4 rounded-xl bg-brand-dark border border-white/10 text-center transition-all peer-checked:border-brand-purple peer-checked:bg-brand-purple/10 peer-checked:text-brand-purple hover:bg-white/5">
+                                <i data-lucide="building-2" class="mx-auto mb-1" size="20"></i>
+                                <span class="text-sm font-bold">Venue Manager</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- BASIC INFO -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">First Name</label>
-                        <input id="firstName" name="first_name" required type="text" value="Test" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none">
+                        <input name="first_name" required type="text" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none text-white">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Last Name</label>
-                        <input id="lastName" name="last_name" required type="text" value="User" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Location / Neighborhood</label>
-                    <div class="relative group">
-                        <i data-lucide="map-pin" class="absolute left-3 top-3 text-brand-accent" size="18"></i>
-                        <input id="location" name="location" required type="text" placeholder="Search your area (e.g. East Legon)" value="Testville" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
-                        <!-- Simulated Google Maps Autocomplete Dropdown -->
-                        <div class="absolute top-full left-0 w-full bg-[#252530] border border-white/10 rounded-xl mt-1 hidden group-focus-within:block shadow-xl z-20">
-                            <div class="p-2 text-xs text-gray-500 border-b border-white/5">Google Maps Suggestions</div>
-                            <div class="p-3 hover:bg-white/5 cursor-pointer text-sm flex items-center gap-2">
-                                <i data-lucide="map-pin" size="12" class="text-gray-400"></i> East Legon, Accra
-                            </div>
-                            <div class="p-3 hover:bg-white/5 cursor-pointer text-sm flex items-center gap-2">
-                                <i data-lucide="map-pin" size="12" class="text-gray-400"></i> East Legon Hills, Accra
-                            </div>
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-gray-500 mt-1">We use this to show you relevant games nearby.</p>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
-                    <div class="relative">
-                        <i data-lucide="mail" class="absolute left-3 top-3 text-gray-500" size="18"></i>
-                        <input id="email" name="email" required type="email" placeholder="you@example.com" value="test+1@example.com" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
+                        <input name="last_name" required type="text" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none text-white">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Username</label>
-                    <div class="relative">
-                        <i data-lucide="mail" class="absolute left-3 top-3 text-gray-500" size="18"></i>
-                        <input id="username" name="username" required type="text" placeholder="eg.r2trappy" value="testuser" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
-                        <p id="usernameError" class="mt-2 text-xs text-red-400 hidden">Username must be at least 4 characters.</p>
-                    </div>
+                    <input name="user_name" required type="text" placeholder="@username" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none text-white">
                 </div>
-
                 <div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
-                            <div class="relative">
-                                <i data-lucide="lock" class="absolute left-3 top-3 text-gray-500" size="18"></i>
-                                <input id="password" type="password" name="password" required placeholder="Create a strong password" value="TestPass123!" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
-                                <p id="passwordError" class="mt-2 text-xs text-red-400 hidden">Password must be at least 8 characters.</p>
-                            </div>
-                        </div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label>
+                    <input name="email" required type="email" placeholder="you@example.com" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Location</label>
+                    <input name="location" required type="text" placeholder="e.g. East Legon" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none text-white">
+                </div>
 
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Confirm Password</label>
-                            <div class="relative">
-                                <i data-lucide="lock" class="absolute left-3 top-3 text-gray-500" size="18"></i>
-                                <input id="confirmPassword" type="password" name="confirm_password" required placeholder="Repeat your password" value="TestPass123!" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pl-10 text-sm focus:border-brand-accent focus:outline-none">
-                                <p id="confirmError" class="mt-2 text-xs text-red-400 hidden">Passwords do not match.</p>
-                            </div>
+                <!-- PLAYER ATTRIBUTES -->
+                <div id="playerAttributesSection" class="bg-black/20 p-5 rounded-2xl border border-white/5 space-y-4 animate-fade-in transition-all duration-300">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i data-lucide="shirt" class="text-brand-accent" size="18"></i>
+                        <span class="text-sm font-bold text-white">Player Stats</span>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Positions</label>
+                        <div class="flex flex-wrap gap-2">
+                            <?php foreach(['GK', 'DEF', 'MID', 'FWD', 'Winger', 'Striker'] as $pos): ?>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="positions[]" value="<?php echo $pos; ?>" class="peer sr-only">
+                                <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-400 peer-checked:bg-brand-accent peer-checked:text-black peer-checked:font-bold transition-all hover:bg-white/10 select-none"><?php echo $pos; ?></span>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Traits</label>
+                        <div class="flex flex-wrap gap-2">
+                            <?php foreach(['Vocal', 'Speed', 'Tactical', 'Captain', 'Playmaker'] as $trait): ?>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="traits[]" value="<?php echo $trait; ?>" class="peer sr-only">
+                                <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-400 peer-checked:bg-brand-purple peer-checked:text-white peer-checked:font-bold transition-all hover:bg-white/10 select-none"><?php echo $trait; ?></span>
+                            </label>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex items-start gap-2 pt-2">
-                    <input type="checkbox" class="mt-1 accent-brand-accent bg-brand-dark border-white/10 rounded">
-                    <p class="text-xs text-gray-400 leading-tight">
-                        I agree to the <a href="#" class="text-white hover:underline">Terms of Service</a> and <a href="#" class="text-white hover:underline">Privacy Policy</a>.
-                    </p>
+                <!-- PASSWORD -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+                        <input id="password" type="password" name="password" required class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Confirm</label>
+                        <input id="confirmPassword" type="password" name="confirm_password" required class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none text-white">
+                    </div>
                 </div>
 
-                <button type="submit" class="w-full bg-brand-accent hover:bg-[#2fe080] text-black font-bold py-3 rounded-xl transition-transform hover:scale-[1.02] shadow-lg shadow-brand-accent/20 mt-4">
+                <button type="submit" id="submitBtn" class="w-full bg-brand-accent hover:bg-[#2fe080] text-black font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-accent/20 mt-4 flex items-center justify-center gap-2">
                     Create Account
                 </button>
             </form>
-
-            <p class="mt-8 text-center text-sm text-gray-400">
-                Already have an account? 
-                <a href="login.html" class="text-brand-accent font-bold hover:underline">Sign In</a>
-            </p>
         </div>
     </main>
 
     <script src="../js/sign_up.js"></script>
+    <script>
+        lucide.createIcons();
+
+        // Force toggle logic inline to guarantee behavior
+        function togglePlayerFields() {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            const section = document.getElementById('playerAttributesSection');
+            
+            if (role === '0') { // Player
+                section.classList.remove('hidden');
+            } else { // Manager (1)
+                section.classList.add('hidden');
+            }
+        }
+
+        // Run on load
+        document.addEventListener('DOMContentLoaded', () => {
+            togglePlayerFields();
+        });
+    </script>
 </body>
 </html>

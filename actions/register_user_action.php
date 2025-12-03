@@ -1,51 +1,56 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-
+session_start();
 require_once __DIR__ . '/../settings/core.php';
 require_once PROJECT_ROOT . '/controllers/user_controller.php';
 
-$response = ['success' => false, 'message' => 'Invalid request'];
+header('Content-Type: application/json');
 
-// Only allow POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode($response);
-    exit;
-}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    
+    // 1. Capture Redirect URL if passed (Deep Linking)
+    $redirect_to = $_POST['redirect_to'] ?? ''; 
 
-// Accept form-data or JSON
-$input = $_POST;
-if (empty($input)) {
-    $raw = file_get_contents('php://input');
-    if ($raw) {
-        $json = json_decode($raw, true);
-        if (is_array($json)) {
-            $input = $json;
+    // 2. Instantiate Controller
+    $controller = new UserController();
+    
+    // 3. Call Register Method
+    // The Controller handles the Database Insert AND sets the $_SESSION
+    $result = $controller->register_user_ctr($_POST);
+
+    // 4. Handle Response & Routing
+    if ($result['success']) {
+        
+        // CHECK 1: Deep Linking / Return URL
+        // If the user was forced to register to do something (e.g. join a game), send them back there.
+        if (!empty($redirect_to)) {
+            $result['redirect'] = $redirect_to;
+        } 
+        // CHECK 2: Default Role-Based Routing
+        else {
+            // We rely on $_POST['role'] to determine the intended destination.
+            // The destination page will verify the $_SESSION['role'] for security.
+            $role = isset($_POST['role']) ? intval($_POST['role']) : 0;
+            
+            switch ($role) {
+                case 1: // Venue Manager
+                    $result['redirect'] = '../view/manage_venues.php';
+                    break;
+                    
+                case 2: // Admin
+                    $result['redirect'] = '../view/admin_dashboard.php'; 
+                    break;
+                    
+                default: // Regular User (0)
+                    $result['redirect'] = '../view/homepage.php';
+                    break;
+            }
         }
+        
+        echo json_encode($result);
+        
+    } else {
+        echo json_encode(['success' => false, 'message' => $result['message']]);
     }
+    exit();
 }
-
-// Basic sanitization: trim all string inputs
-if ($input && is_array($input)) {
-    $input = array_map(function ($v) {
-        return is_string($v) ? trim($v) : $v;
-    }, $input);
-}
-
-// Ensure required fields exist
-$required = ['username','first_name','last_name','email', 'password', 'confirm_password','location'];
-foreach ($required as $field) {
-    if (empty($input[$field])) {
-        echo json_encode([
-            'success' => false,
-            'message' => ucfirst($field) . ' is required.'
-        ]);
-        exit;
-    }
-}
-
-$controller = new UserController();
-$result = $controller->register_user($input);
-
-// Return JSON response
-echo json_encode($result);
-exit;
+?>

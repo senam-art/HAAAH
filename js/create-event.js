@@ -66,32 +66,25 @@ const DOM = {
 // 1. MAP INITIALIZATION
 // =========================================
 
-/**
- * 1. This function is the entry point for Google Maps.
- * It is called automatically by the API script via &callback=initVenueMap
- */
 window.initVenueMap = function() {
     console.log("📍 Google Maps Callback received. Starting map render...");
     
     const mapEl = document.getElementById(DOM.venueMap);
     
-    // Safety check: Does the div exist?
     if (!mapEl) {
         console.error(`❌ Fatal: Map element #${DOM.venueMap} not found in DOM.`);
         return;
     }
 
-    // Prevent re-initialization
     if (STATE.map) return; 
 
-    // Initialize Map
     try {
         const defaultCenter = { lat: 5.6037, lng: -0.1870 }; // Accra
         
         STATE.map = new google.maps.Map(mapEl, { 
             center: defaultCenter, 
             zoom: 13, 
-            mapId: "VENUE_PICKER_MAP", // Required for Advanced Markers
+            mapId: "VENUE_PICKER_MAP", 
             disableDefaultUI: true, 
             zoomControl: true, 
             gestureHandling: 'greedy' 
@@ -99,7 +92,6 @@ window.initVenueMap = function() {
         
         console.log("🗺️ Map successfully rendered.");
 
-        // If venues are already fetched, show the marker for the current one
         if(STATE.allVenues.length > 0) {
             updateMapMarker(STATE.allVenues[STATE.currentVenueIndex]);
         }
@@ -109,25 +101,18 @@ window.initVenueMap = function() {
     }
 };
 
-/**
- * 2. This function injects the Google Maps script tag into the HTML head.
- * It runs only if the API isn't already loaded.
- */
 function loadGoogleMapsAPI() {
-    // Check if Google Maps is already loaded (e.g., from cache or other scripts)
     if (window.google && window.google.maps) {
         console.log("ℹ️ Google Maps API already loaded. Initializing directly.");
         window.initVenueMap();
         return;
     }
 
-    // Check if we are already trying to load it (prevent duplicates)
     if (document.getElementById('gmaps-script')) {
         console.log("ℹ️ Script already injected, waiting for callback...");
         return;
     }
 
-    // Create the script tag
     console.log("🔄 Injecting Google Maps script tag...");
     const script = document.createElement('script');
     script.id = 'gmaps-script';
@@ -135,7 +120,6 @@ function loadGoogleMapsAPI() {
     script.async = true;
     script.defer = true;
     
-    // Error handling for the script request itself (e.g. no internet)
     script.onerror = () => {
         console.error("❌ Network Error: Failed to load Google Maps script.");
         const mapEl = document.getElementById(DOM.venueMap);
@@ -152,22 +136,15 @@ function loadGoogleMapsAPI() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log("🚀 DOM Content Loaded. Initializing App...");
     
-    // 1. Give visual feedback that map is trying to load
     const mapEl = document.getElementById(DOM.venueMap);
     if(mapEl) {
         mapEl.innerHTML = '<div class="h-full w-full flex items-center justify-center bg-gray-800 text-brand-accent animate-pulse text-xs">Loading Map...</div>';
     }
 
-    // 2. Start Listeners
     initListeners();
-
-    // 3. Fetch Data
     fetchVenues(); 
-
-    // 4. Load Map API
     loadGoogleMapsAPI();
     
-    // 5. Bind Paystack Button Logic
     const payBtn = document.getElementById(DOM.btn.paystack);
     if(payBtn) {
         payBtn.addEventListener('click', payWithPaystack);
@@ -273,11 +250,18 @@ function renderVenueCard() {
         }
     }
 
+    // UPDATED HTML TO INCLUDE THE BUTTON
     container.innerHTML = `
         <div class="h-[500px] w-full bg-brand-card rounded-2xl border border-white/10 overflow-hidden shadow-2xl flex flex-col relative animate-fade-in group">
             <div class="relative h-[220px] w-full bg-gray-900 shrink-0">
                 <div class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide h-full w-full" style="scroll-behavior: smooth;">${imagesHtml}</div>
                 ${dotsHtml}
+                
+                <!-- [NEW] View Profile Button -->
+                <a href="venue-profile.php?id=${venue.venue_id}" target="_blank" class="absolute top-4 right-4 z-20 p-2 bg-black/60 hover:bg-brand-accent hover:text-black text-white rounded-lg backdrop-blur-md border border-white/10 transition-all shadow-lg" title="View Full Venue Profile">
+                    <i data-lucide="external-link" size="18"></i>
+                </a>
+
             </div>
             
             <div class="flex-1 p-5 flex flex-col justify-between overflow-hidden">
@@ -319,10 +303,7 @@ function renderVenueCard() {
 }
 
 function updateMapMarker(venue) {
-    if (!STATE.map) {
-        // Map isn't ready yet. Marker will be added in initVenueMap() later.
-        return;
-    }
+    if (!STATE.map) return;
     
     if (isNaN(venue.latitude) || isNaN(venue.longitude)) {
         console.warn("Invalid coordinates for venue:", venue.name);
@@ -331,7 +312,6 @@ function updateMapMarker(venue) {
 
     const pos = { lat: venue.latitude, lng: venue.longitude };
     
-    // Clear old marker
     if (STATE.marker) STATE.marker.map = null;
     
     try {
@@ -557,13 +537,12 @@ function payWithPaystack() {
     payBtn.disabled = true;
     payBtn.innerHTML = "Initializing...";
 
-    // Initialize Paystack Popup
     const handler = PaystackPop.setup({
         key: 'pk_test_62bcb1bc82f3445af1255aa8a8f0f1e7446f7936', 
         email: email,
         amount: STATE.pendingAmount * 100, // Convert to Kobo
         currency: 'GHS',
-        ref: 'HAAAH-' + Math.floor((Math.random() * 1000000000) + 1), // Generate a random ref
+        ref: 'HAAAH-' + Math.floor((Math.random() * 1000000000) + 1), 
         metadata: {
             custom_fields: [
                 { display_name: "Event ID", variable_name: "event_id", value: STATE.pendingEventId },
@@ -571,7 +550,6 @@ function payWithPaystack() {
             ]
         },
         callback: function(response) {
-            // Success! Redirect to Controller for verification
             window.location.href = `../actions/verify_payment.php?reference=${response.reference}&event_id=${STATE.pendingEventId}&type=organizer_fee`;
         },
         onClose: function() {
@@ -595,14 +573,13 @@ function handleFormSubmit(e) {
     if (!document.getElementById(DOM.inputs.venueId).value) { alert("⚠️ Please select a venue."); return; }
 
     const submitBtn = document.getElementById(DOM.btn.submit);
-    submitBtn.setAttribute('data-original-text', submitBtn.innerHTML); // Save text
+    submitBtn.setAttribute('data-original-text', submitBtn.innerHTML); 
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Creating Event...';
     if(window.lucide) lucide.createIcons();
 
     const formData = new FormData(form);
     
-    // Get title manually for the modal (FormData might be tricky to read back immediately)
     const titleVal = form.querySelector('input[name="title"]').value;
     const feeVal = document.getElementById(DOM.inputs.commitmentFee).value;
 
@@ -615,7 +592,6 @@ function handleFormSubmit(e) {
         try { data = JSON.parse(text.trim()); } catch (e) { data = { success: false, message: 'Server error' }; }
 
         if (data.success && data.event_id) {
-            // STOP! Don't redirect. Open the Payment Modal.
             showPaymentModal(data.event_id, feeVal, titleVal);
         } else {
             alert("Error: " + (data.message || "Failed"));

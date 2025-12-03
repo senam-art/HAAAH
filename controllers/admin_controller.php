@@ -50,4 +50,10 @@ function restore_venue_ctr($venue_id) {
     $admin = new Admin();
     return $admin->restore_venue($venue_id);
 }
+
+// NEW: Controller for Active Events
+function get_active_events_ctr() {
+    $admin = new Admin();
+    return $admin->get_active_events();
+}
 ?>
