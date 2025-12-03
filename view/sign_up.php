@@ -27,7 +27,7 @@ redirectIfLoggedIn()
 <body class="selection:bg-brand-accent selection:text-black min-h-screen flex flex-col relative pb-20">
 
     <nav class="relative z-10 px-6 py-6 flex justify-between items-center">
-        <a href="landing.html" class="font-black tracking-tighter text-2xl text-white">HAAAH<span class="text-brand-accent text-base font-normal tracking-widest ml-1">SPORTS</span></a>
+        <a href="../landing.php" class="font-black tracking-tighter text-2xl text-white">HAAAH<span class="text-brand-accent text-base font-normal tracking-widest ml-1">SPORTS</span></a>
         <a href="login.php" class="text-sm font-bold text-gray-400 hover:text-white transition-colors">Sign In</a>
     </nav>
 

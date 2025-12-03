@@ -21,11 +21,18 @@ if ($is_logged_in) {
         if (!empty($current_user['profile_details'])) {
             $details = json_decode($current_user['profile_details'], true);
             if (is_array($details) && !empty($details['profile_image'])) {
-                $profile_pic = $details['profile_image'];
+                // ✅ Make path browser-accessible dynamically
+                $profile_pic = UPLOADS_URL . str_replace('/uploads', '', $details['profile_image']);
             }
         }
     }
 }
+
+// Fallback if no profile image
+if (!$profile_pic) {
+    $profile_pic = 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80';
+}
+
 
 // 2. Fetch All Venues
 $venues = get_all_venues_ctr(); 
@@ -131,14 +138,18 @@ $venue_count = is_array($venues) ? count($venues) : 0;
                         $link = "venue-profile.php?id=$v_id";
                     ?>
                     
-                    <a href="<?php echo $link; ?>" class="group bg-brand-card rounded-2xl border border-white/5 overflow-hidden hover:border-brand-accent/50 transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-brand-accent/10 flex flex-col">
+                  <a href="<?= htmlspecialchars($link) ?>" class="group bg-brand-card rounded-2xl border border-white/5 overflow-hidden hover:border-brand-accent/50 transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-brand-accent/10 flex flex-col">
                         <div class="relative h-48 w-full overflow-hidden">
-                            <img src="<?php echo $v_img; ?>" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                            <?php 
+                            // Ensure the image path works on both local and live servers
+                            $v_img_url = !empty($v_img) ? UPLOADS_URL . str_replace('/uploads', '', $v_img) : 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80';
+                            ?>
+                            <img src="<?= htmlspecialchars($v_img_url) ?>" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                             <div class="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent opacity-80"></div>
                             
-                            <?php if ($v_rating): ?>
+                            <?php if (!empty($v_rating)): ?>
                                 <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
-                                    <span class="text-xs font-bold text-white"><?php echo $v_rating; ?></span>
+                                    <span class="text-xs font-bold text-white"><?= htmlspecialchars($v_rating) ?></span>
                                     <i data-lucide="star" size="10" class="text-yellow-500 fill-yellow-500"></i>
                                 </div>
                             <?php endif; ?>

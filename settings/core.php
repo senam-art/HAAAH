@@ -12,24 +12,21 @@ if (!defined('PROJECT_ROOT')) {
 }
 
 
-// settings/paths.php or core.php
-
-// Filesystem path (always absolute, stays the same)
+// Filesystem path
 define('UPLOADS_FS', dirname(PROJECT_ROOT) . '/uploads');
 
-// Browser URL path (dynamic)
-$doc_root = $_SERVER['DOCUMENT_ROOT']; // e.g., /home/senam.dzomeku/public_html
-
+// Browser URL path
+$doc_root = $_SERVER['DOCUMENT_ROOT'];
 if (strpos(PROJECT_ROOT, $doc_root) === 0) {
-    // Local XAMPP or server without ~username
+    // local XAMPP or server root
     $uploads_url = '/uploads';
 } else {
-    // Live server using ~username
+    // live server with ~user
     $user_dir = str_replace($doc_root, '', PROJECT_ROOT);
     $uploads_url = $user_dir . '/uploads';
 }
-
 define('UPLOADS_URL', $uploads_url);
+
 
 
 

@@ -79,8 +79,9 @@ $user_email = $current_user['email']; // Store email for JS
                 <span class="text-sm font-bold">Cancel</span>
             </a>
             <h1 class="font-black text-lg tracking-tight">Create Match</h1>
+            <!-- Profile Picture Section -->
             <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-accent to-brand-purple p-[2px]">
-                <div class="w-full h-full rounded-full bg-brand-dark flex items-center justify-center font-bold text-xs text-white">
+                <div class="w-full h-full rounded-full bg-brand-dark flex items-center justify-center font-bold text-xs text-white overflow-hidden">
                     <?php if ($profile_pic_path): ?>
                     <img src="<?php echo htmlspecialchars($profile_pic_path); ?>" class="w-full h-full object-cover">
                     <?php else: ?>
