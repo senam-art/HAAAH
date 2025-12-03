@@ -47,6 +47,9 @@ function get_user_id() {
     return $_SESSION['user_id'] ?? false;
 }
 
+define('PAYSTACK_SECRET_KEY', 'sk_test_319a4bce5fb94ebdf86fdb8a81a216683008e1d7'); // Paystack Secret Key
+
+
 /**
  * Check Admin Role
  */

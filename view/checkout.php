@@ -1,20 +1,30 @@
 <?php
+// Add these lines to see the real error
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+// view/checkout.php
 session_start();
 
-// 1. SECURITY: Enforce Login
+// 1. Bootstrap Core (Standardizes paths & DB connection)
+require_once __DIR__ . '/../settings/core.php'; 
+
+// 2. Security Check
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php?msg=login_to_pay");
     exit();
 }
 
-// 2. Include Logic
-require_once __DIR__ . '/../controllers/payment_controller.php';
+// 3. Load Payment Controller
+require_once PROJECT_ROOT . '/controllers/payment_controller.php';
+// Include Event Controller for player checks
+require_once PROJECT_ROOT . '/controllers/guest_controller.php';
 
-// 3. Get Input
+// 4. Get Input
 $event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
 $type = isset($_GET['type']) ? $_GET['type'] : 'join_game';
 
-// 4. Get Processed Data from Controller
+// 5. Get Processed Data from Controller
 $details = get_checkout_details_ctr($event_id, $type);
 
 if (!$details) {
@@ -26,29 +36,25 @@ $event = $details['event'];
 $user_email = isset($_SESSION['user_email']) ? $_SESSION['user_email'] : 'guest@haaah.com';
 $user_id = $_SESSION['user_id'];
 
-// --- NEW: PREVENT DOUBLE PAYMENTS ---
+// 6. Prevent Double Booking / Payments
 if ($type === 'organizer_fee') {
-    // If the event is NOT in 'awaiting_payment' status, it means it's already published/pending/confirmed
+    // If event is not 'awaiting_payment', it's already processed
     if ($event['status'] !== 'awaiting_payment') {
         header("Location: event-profile.php?id=$event_id&msg=already_published");
         exit();
     }
 } else {
-    // Check if player is already in the squad list
-    // We reuse the existing controller function to fetch players
+    // Check if player is already in squad
     $current_players = get_event_players_ctr($event_id);
-    
     if (is_array($current_players)) {
         foreach ($current_players as $player) {
             if (isset($player['id']) && $player['id'] == $user_id) {
-                // User already booked this event
                 header("Location: event-profile.php?id=$event_id&msg=already_joined");
                 exit();
             }
         }
     }
 }
-// ------------------------------------
 ?>
 
 <!DOCTYPE html>
@@ -56,11 +62,12 @@ if ($type === 'organizer_fee') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $details['page_title']; ?> - Haaah Sports</title>
+    <title><?php echo htmlspecialchars($details['page_title']); ?> - Haaah Sports</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- PAYSTACK INLINE JS -->
+    <!-- Paystack Inline -->
     <script src="https://js.paystack.co/v1/inline.js"></script>
+    
     <script>
         tailwind.config = {
             theme: {
@@ -70,6 +77,9 @@ if ($type === 'organizer_fee') {
                 }
             }
         }
+        
+        // Pass Public Key to JS (Replace with your actual Public Key)
+        window.PAYSTACK_PUBLIC_KEY = 'pk_test_62bcb1bc82f3445af1255aa8a8f0f1e7446f7936'; 
     </script>
     <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap'); body { font-family: 'Inter', sans-serif; background-color: #0f0f13; color: white; }</style>
 </head>
@@ -90,7 +100,7 @@ if ($type === 'organizer_fee') {
             <!-- LEFT: Order Summary -->
             <div class="space-y-6">
                 <div>
-                    <h2 class="text-2xl font-bold mb-2"><?php echo $details['page_title']; ?></h2>
+                    <h2 class="text-2xl font-bold mb-2"><?php echo htmlspecialchars($details['page_title']); ?></h2>
                     <p class="text-gray-400 text-sm">Review your details before paying.</p>
                 </div>
 
@@ -102,7 +112,7 @@ if ($type === 'organizer_fee') {
                             <div>
                                 <h3 class="font-bold text-lg text-white"><?php echo htmlspecialchars($event['title']); ?></h3>
                                 <div class="flex items-center gap-2 text-sm text-gray-400 mt-1">
-                                    <i data-lucide="map-pin" size="14"></i> <?php echo htmlspecialchars($event['venue_name']); ?>
+                                    <i data-lucide="map-pin" size="14"></i> <?php echo htmlspecialchars($event['venue_name'] ?? 'Unknown Venue'); ?>
                                 </div>
                             </div>
                             <div class="bg-white/5 p-3 rounded-xl">
@@ -115,8 +125,8 @@ if ($type === 'organizer_fee') {
                         <!-- Item Details -->
                         <div class="flex justify-between items-center mb-2">
                             <div>
-                                <div class="font-bold text-sm text-white"><?php echo $details['item_name']; ?></div>
-                                <div class="text-xs text-gray-500"><?php echo $details['item_desc']; ?></div>
+                                <div class="font-bold text-sm text-white"><?php echo htmlspecialchars($details['item_name']); ?></div>
+                                <div class="text-xs text-gray-500"><?php echo htmlspecialchars($details['item_desc']); ?></div>
                             </div>
                             <div class="font-mono font-bold">GHS <?php echo number_format($details['amount_to_pay'], 2); ?></div>
                         </div>
@@ -138,14 +148,15 @@ if ($type === 'organizer_fee') {
 
             <!-- RIGHT: Payment Method -->
             <div class="bg-brand-card rounded-2xl p-8 border border-white/5 h-fit">
-                <form id="paymentForm" onsubmit="handlePayment(event)">
+                <form id="paymentForm">
                     
                     <!-- DATA CARRIERS: Hidden inputs for JS to read -->
-                    <input type="hidden" name="amount" value="<?php echo $details['amount_to_pay']; ?>">
-                    <input type="hidden" name="email" value="<?php echo htmlspecialchars($user_email); ?>">
-                    <input type="hidden" name="event_id" value="<?php echo $event_id; ?>">
-                    <input type="hidden" name="payment_type" value="<?php echo $type; ?>">
-                    <input type="hidden" name="tx_ref" value="<?php echo $details['tx_ref']; ?>">
+                    <input type="hidden" id="p_amount" value="<?php echo $details['amount_to_pay']; ?>">
+                    <input type="hidden" id="p_email" value="<?php echo htmlspecialchars($user_email); ?>">
+                    <input type="hidden" id="p_event_id" value="<?php echo $event_id; ?>">
+                    <input type="hidden" id="p_type" value="<?php echo htmlspecialchars($type); ?>">
+                    <input type="hidden" id="p_ref" value="<?php echo htmlspecialchars($details['tx_ref']); ?>">
+                    <input type="hidden" id="p_title" value="<?php echo htmlspecialchars($event['title']); ?>">
 
                     <h3 class="font-bold mb-6">Select Payment Method</h3>
                     
@@ -184,5 +195,6 @@ if ($type === 'organizer_fee') {
 
     <!-- External JS Logic -->
     <script src="../js/checkout.js"></script>
+    <script>lucide.createIcons();</script>
 </body>
 </html>

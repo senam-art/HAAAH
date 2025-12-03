@@ -1,6 +1,12 @@
 <?php
 require_once '../settings/core.php';
 require_once PROJECT_ROOT . '/controllers/user_controller.php';
+// 2. Load Logic
+require_once PROJECT_ROOT . '/actions/get_profile_data.php';
+
+// 3. Determine Profile Picture
+$profile_pic_path = $profile_tags['profile_image'] ?? null;
+
 
 // 1. CAPTURE DATA FROM LANDING PAGE
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -30,7 +36,25 @@ if (isset($_SESSION['user_id'])) {
     }
 }
 
-// 4. MODAL LOGIC
+// 4. FETCH POPULAR VENUES (Dynamic)
+$popular_venues = [];
+// Assuming DB constants are available from core.php -> db_class.php -> db_cred.php
+$conn = new mysqli(SERVER, USERNAME, PASSWD, DATABASE);
+if (!$conn->connect_error) {
+    // Fetch top 3 venues by rating
+    // Note: Ensure your 'venues' table has a 'rating' column.
+    $sql = "SELECT venue_id, name, address, rating FROM venues WHERE rating IS NOT NULL ORDER BY rating DESC LIMIT 3";
+    $result = $conn->query($sql);
+    
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $popular_venues[] = $row;
+        }
+    }
+    $conn->close();
+}
+
+// 5. MODAL LOGIC
 $modal_type = isset($_GET['msg']) ? $_GET['msg'] : '';
 $show_modal = false;
 $modal_title = '';
@@ -184,13 +208,17 @@ if ($modal_type === 'venue_submitted_for_review') {
                     <i data-lucide="receipt" size="14"></i> Orders
                 </a>
 
-                <a href="create-event.php" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-brand-accent text-black font-bold rounded-full text-sm hover:bg-[#2fe080]">
-                    <i data-lucide="plus" size="16"></i> Create
+                <a href="create_event.php" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-brand-accent text-black font-bold rounded-full text-sm hover:bg-[#2fe080]">
+                    <i data-lucide="plus" size="16"></i> Create Event
                 </a>
                 
                 <!-- Dynamic Profile Link -->
-                <a href="profile.php" class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm border-2 border-brand-card hover:border-brand-accent transition-colors text-white">
-                    <?php echo $initials; ?>
+                <a href="profile.php" class="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center font-bold text-sm border-2 border-brand-card hover:border-brand-accent transition-colors text-white overflow-hidden">
+                    <?php if ($profile_pic_path): ?>
+                        <img src="<?php echo htmlspecialchars($profile_pic_path); ?>" class="w-full h-full object-cover">
+                    <?php else: ?>
+                        <?php echo $initials; ?>
+                    <?php endif; ?>
                 </a>
             </div>
         </header>
@@ -242,13 +270,31 @@ if ($modal_type === 'venue_submitted_for_review') {
 
                     <!-- Games Container (JS loads content here) -->
                     <div id="games-container" class="space-y-4">
-                        <div class="p-12 text-center text-gray-500">Loading games...</div>
+                        <div class="p-12 text-center text-gray-500 animate-pulse">
+                            <i data-lucide="loader" class="animate-spin inline mr-2"></i> Loading games...
+                        </div>
                     </div>
                 </div>
 
                 <!-- Right Column: Sidebar Widgets -->
                 <div class="space-y-6">
                     
+                    <!-- NEW: Substitutes Info Widget -->
+                    <div class="bg-gradient-to-br from-brand-card to-[#1a1a23] border border-brand-accent/30 rounded-xl p-5 relative overflow-hidden group">
+                        <div class="absolute -right-6 -top-6 w-20 h-20 bg-brand-accent/10 rounded-full group-hover:bg-brand-accent/20 transition-colors blur-xl"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-bold text-white flex items-center gap-2">
+                                    <i data-lucide="users-round" size="16" class="text-brand-accent"></i> Squad Buffers
+                                </h3>
+                                <span class="px-2 py-0.5 bg-brand-accent/20 text-brand-accent text-[10px] font-bold uppercase tracking-wider rounded border border-brand-accent/20">New</span>
+                            </div>
+                            <p class="text-xs text-gray-400 leading-relaxed">
+                                Don't worry about flakers! Games now allow <span class="text-white font-bold">3 extra substitutes</span> to join. Secure your spot on the bench and get ready to play.
+                            </p>
+                        </div>
+                    </div>
+
                     <!-- Login Prompt (Shown only to Guests) -->
                     <div id="widget-guest-login" class="bg-gradient-to-br from-brand-card to-[#20202a] border border-white/10 rounded-2xl p-6 text-center">
                         <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 text-white">
@@ -259,30 +305,31 @@ if ($modal_type === 'venue_submitted_for_review') {
                         <a href="login.php" class="block w-full py-2 bg-white/10 border border-white/10 rounded-lg text-sm font-bold hover:bg-white/20 transition-colors">Log In / Sign Up</a>
                     </div>
 
-                    <!-- Top Venues -->
+                    <!-- Top Venues (Dynamic) -->
                     <div class="bg-[#16161c] border border-white/5 rounded-xl p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold">Popular Pitches</h3>
                             <a href="venue-portal.php" class="text-xs text-brand-accent hover:underline">List yours</a>
                         </div>
                         <div class="space-y-4">
-                            <!-- Example Static Venues -->
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-gray-500 font-bold text-xs">01</div>
-                                <div class="flex-1">
-                                    <div class="font-bold text-sm">McDan Park</div>
-                                    <div class="text-xs text-gray-500">La, Accra</div>
-                                </div>
-                                <div class="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded text-yellow-500 text-xs font-bold">4.8 <i data-lucide="star" size="10" fill="currentColor"></i></div>
-                            </div>
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-gray-500 font-bold text-xs">02</div>
-                                <div class="flex-1">
-                                    <div class="font-bold text-sm">Ajax Park</div>
-                                    <div class="text-xs text-gray-500">Legon</div>
-                                </div>
-                                <div class="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded text-yellow-500 text-xs font-bold">4.5 <i data-lucide="star" size="10" fill="currentColor"></i></div>
-                            </div>
+                            <?php if (!empty($popular_venues)): ?>
+                                <?php foreach ($popular_venues as $index => $venue): ?>
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-gray-500 font-bold text-xs">
+                                            <?php echo str_pad($index + 1, 2, '0', STR_PAD_LEFT); ?>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-sm text-white truncate"><?php echo htmlspecialchars($venue['name']); ?></div>
+                                            <div class="text-xs text-gray-500 truncate"><?php echo htmlspecialchars($venue['address']); ?></div>
+                                        </div>
+                                        <div class="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded text-yellow-500 text-xs font-bold whitespace-nowrap">
+                                            <?php echo number_format($venue['rating'], 1); ?> <i data-lucide="star" size="10" fill="currentColor"></i>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="text-xs text-gray-500 text-center py-4">No rated venues yet.</div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -382,10 +429,10 @@ if ($modal_type === 'venue_submitted_for_review') {
     <script>
         lucide.createIcons();
 
-        // 2. PASS PHP DATA TO JS
-        const INITIAL_SEARCH = "<?php echo htmlspecialchars($search_term); ?>";
-        const INITIAL_LAT = "<?php echo htmlspecialchars($lat); ?>";
-        const INITIAL_LNG = "<?php echo htmlspecialchars($lng); ?>";
+        // 2. PASS PHP DATA TO JS (Global Scope)
+        window.INITIAL_SEARCH = "<?php echo htmlspecialchars($search_term); ?>";
+        window.INITIAL_LAT = "<?php echo htmlspecialchars($lat); ?>";
+        window.INITIAL_LNG = "<?php echo htmlspecialchars($lng); ?>";
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('-translate-x-full');
@@ -445,7 +492,22 @@ if ($modal_type === 'venue_submitted_for_review') {
 
              const script = document.createElement('script');
              script.id = 'find-game-script';
-             script.src = '../js/find_game.js';
+             // Add timestamp to bust cache
+             script.src = '../js/find_game.js?v=' + new Date().getTime();
+             
+             // Error Handler
+             script.onerror = function() {
+                 const container = document.getElementById('games-container');
+                 if(container) {
+                     container.innerHTML = `
+                        <div class="p-8 text-center bg-red-500/10 rounded-xl border border-red-500/20">
+                            <p class="text-red-400 font-bold">Failed to load games script</p>
+                            <p class="text-xs text-gray-500 mt-1">Please check your internet connection or try refreshing.</p>
+                        </div>`;
+                 }
+                 console.error("Failed to load script: ../js/find_game.js");
+             };
+
              document.body.appendChild(script);
         }
 
@@ -461,11 +523,7 @@ if ($modal_type === 'venue_submitted_for_review') {
                                      (typeof window.performance != "undefined" && 
                                       window.performance.navigation.type === 2);
             
-            // Or check if the container still says "Loading..."
-            const container = document.getElementById('games-container');
-            const isStuck = container && container.innerText.includes('Loading games');
-
-            if (historyTraversal || isStuck) {
+            if (historyTraversal) {
                 // Force a full reload to re-trigger the JS logic fresh
                 window.location.reload();
             }

@@ -85,6 +85,7 @@ class UserController {
             // Use 'id' as per your database schema
             $_SESSION['user_id'] = $userData['id']; 
             $_SESSION['role'] = $userData['role'];
+            $_SESSION['user_email'] = $userData['email'];
             $_SESSION['user_name'] = $userData['user_name'];
 
             // 4. Intelligent Redirect

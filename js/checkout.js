@@ -1,60 +1,63 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
+    const paymentForm = document.getElementById('paymentForm');
+    const payBtn = document.getElementById('payBtn');
+
+    if (paymentForm) {
+        paymentForm.addEventListener('submit', handlePayment);
+    }
+
+    function handlePayment(e) {
+        e.preventDefault();
+
+        // 1. Get Data from Hidden Inputs
+        const amount = document.getElementById('p_amount').value;
+        const email = document.getElementById('p_email').value;
+        const eventId = document.getElementById('p_event_id').value;
+        const type = document.getElementById('p_type').value;
+        const ref = document.getElementById('p_ref').value; // Use the PHP-generated ref for consistency
+        const title = document.getElementById('p_title').value;
+
+        // 2. Validate
+        if (!amount || !email || !eventId) {
+            alert("Missing payment details. Please refresh the page.");
+            return;
+        }
+
+        // 3. UI Feedback
+        const originalText = payBtn.innerHTML;
+        payBtn.disabled = true;
+        payBtn.innerHTML = `Processing...`;
+
+        // 4. Initialize Paystack
+        const handler = PaystackPop.setup({
+            key: window.PAYSTACK_PUBLIC_KEY, // Defined in view/checkout.php
+            email: email,
+            amount: parseFloat(amount) * 100, // Convert to Kobo
+            currency: 'GHS',
+            ref: ref, // Ensure this matches what we verify later
+            metadata: {
+                custom_fields: [
+                    { display_name: "Event ID", variable_name: "event_id", value: eventId },
+                    { display_name: "Event Title", variable_name: "event_title", value: title },
+                    { display_name: "Payment Type", variable_name: "payment_type", value: type }
+                ]
+            },
+            callback: function(response) {
+                // ✅ SUCCESS: Redirect to the MVC Action
+                // Passing reference, event_id, and type so verify_payment.php can do its job
+                const verifyUrl = `../actions/verify_payment.php?reference=${response.reference}&event_id=${eventId}&type=${type}`;
+                
+                console.log("Redirecting to verification:", verifyUrl);
+                window.location.href = verifyUrl;
+            },
+            onClose: function() {
+                alert('Transaction cancelled.');
+                payBtn.disabled = false;
+                payBtn.innerHTML = originalText;
+            }
+        });
+
+        // 5. Open Iframe
+        handler.openIframe();
     }
 });
-
-function handlePayment(e) {
-    e.preventDefault();
-    
-    // 1. Get Data from Hidden Inputs
-    const form = document.getElementById('paymentForm');
-    const formData = new FormData(form);
-    
-    const email = formData.get('email');
-    const amount = formData.get('amount');
-    const ref = formData.get('tx_ref');
-    const eventId = formData.get('event_id');
-    const type = formData.get('payment_type');
-    
-    // 2. Disable Button to prevent double-clicks
-    const btn = document.getElementById('payBtn');
-    const originalText = btn.innerHTML;
-    
-    btn.disabled = true;
-    btn.innerHTML = `Processing...`;
-
-    // 3. Initialize Paystack Popup
-    const handler = PaystackPop.setup({
-        key: 'pk_test_62bcb1bc82f3445af1255aa8a8f0f1e7446f7936', // REPLACE WITH YOUR PUBLIC KEY
-        email: email,
-        amount: amount * 100, // Paystack expects amount in kobo/pesewas
-        currency: 'GHS',
-        ref: ref,
-        metadata: {
-            custom_fields: [
-                { display_name: "Event ID", variable_name: "event_id", value: eventId },
-                { display_name: "Payment Type", variable_name: "payment_type", value: type }
-            ]
-        },
-        callback: function(response) {
-            // 4. Success Handler: Redirect to verification backend
-            btn.innerHTML = "Verifying Transaction...";
-            
-            // Redirect to backend action to verify and save to DB
-            // We pass the reference returned by Paystack + our original params
-            const verifyUrl = `../actions/verify_payment.php?reference=${response.reference}&event_id=${eventId}&type=${type}`;
-            
-            window.location.href = verifyUrl;
-        },
-        onClose: function() {
-            // 5. Close Handler
-            alert('Transaction cancelled.');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    });
-
-    handler.openIframe();
-}

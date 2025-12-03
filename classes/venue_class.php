@@ -1,4 +1,5 @@
 <?php
+// classes/venue_class.php
 require_once __DIR__ . '/../settings/core.php';
 require_once PROJECT_ROOT . '/settings/db_class.php';
 
@@ -6,28 +7,105 @@ class Venue extends db_connection
 {
     public function __construct() { parent::db_connect(); }
 
+    // --- Fetch All Venues ---
     public function get_all_venues()
     {
-        $sql = "SELECT * FROM venues WHERE is_active = 1"; 
+        $sql = "SELECT * FROM venues WHERE is_active = 1 AND is_deleted = 0 ORDER BY created_at DESC"; 
         $stmt = $this->db->prepare($sql);
-        if (!$stmt) return $this->db_fetch_all($sql);
+        if (!$stmt) return false;
         $stmt->execute();
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
 
-    /**
-     * Get Booked Slots (Smart Duration Handling)
-     */
-    public function get_booked_slots($venue_id, $date)
+    // --- NEW: Fetch Owner's Venues ---
+    public function get_venues_by_owner($owner_id)
     {
-        // Select Start Time AND Duration
-        $sql = "SELECT event_time, duration 
-                FROM events 
-                WHERE venue_id = ? 
-                AND event_date = ? 
-                AND status != 'cancelled'";
+        $sql = "SELECT * FROM venues WHERE owner_id = ? AND is_deleted = 0 ORDER BY created_at DESC";
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) return [];
+        
+        $stmt->bind_param("i", $owner_id);
+        $stmt->execute();
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
+
+    // --- Get Single Venue ---
+    public function get_venue_by_id($venue_id)
+    {
+        $sql = "SELECT * FROM venues WHERE venue_id = ? AND is_deleted = 0";
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) return false;
+        
+        $stmt->bind_param("i", $venue_id);
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_assoc();
+    }
+
+    // --- NEW: Create Venue ---
+    public function add_venue($owner_id, $name, $address, $lat, $lng, $cost, $desc, $capacity, $amenities, $images, $phone, $email)
+    {
+       // Default: is_active = 1 (Pending/Active), is_deleted = 0
+        $sql = "INSERT INTO venues (owner_id, name, address, latitude, longitude, cost_per_hour, description, capacity, amenities, image_urls, phone, email, is_active, is_deleted, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW())";
+        
         
         $stmt = $this->db->prepare($sql);
+        if (!$stmt) return false;
+
+        $stmt->bind_param("issdddsissss", $owner_id, $name, $address, $lat, $lng, $cost, $desc, $capacity, $amenities, $images, $phone, $email);
+        
+        if ($stmt->execute()) {
+            return $this->db->insert_id;
+        }
+        return false;
+    }
+       
+
+    // --- NEW: Update Venue ---
+    public function update_venue($venue_id, $owner_id, $name, $address, $lat, $lng, $cost, $desc, $capacity, $amenities, $images, $phone, $email)
+    {
+        $sql = "UPDATE venues SET name=?, address=?, latitude=?, longitude=?, cost_per_hour=?, description=?, capacity=?, amenities=?, image_urls=?, phone=?, email=?, updated_at=NOW() 
+                WHERE venue_id=? AND owner_id=?";
+        
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) return false;
+
+        // params: s s d d d s i s s s s i i (13 params)
+        $stmt->bind_param("ssdddsissssii", $name, $address, $lat, $lng, $cost, $desc, $capacity, $amenities, $images, $phone, $email, $venue_id, $owner_id);
+        
+        return $stmt->execute();
+    }
+
+    // --- UPDATED: Soft Delete (Using is_deleted) ---
+    public function delete_venue($venue_id, $owner_id)
+    {
+        // Set is_deleted to 1 (True). preserve is_active for history.
+        $sql = "UPDATE venues SET is_deleted = 1 WHERE venue_id = ? AND owner_id = ?";
+        
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) return false;
+
+        $stmt->bind_param("ii", $venue_id, $owner_id);
+        
+        return $stmt->execute();
+    }
+    
+    public function get_booked_slots($venue_id, $date)
+    {
+        // Check if duration exists (Legacy support)
+        $check = $this->db->query("SHOW COLUMNS FROM events LIKE 'duration'");
+        $has_duration = ($check && $check->num_rows > 0);
+
+        if ($has_duration) {
+            $sql = "SELECT event_time, duration FROM events WHERE venue_id = ? AND event_date = ? AND status != 'cancelled'";
+        } else {
+            $sql = "SELECT event_time, 1 as duration FROM events WHERE venue_id = ? AND event_date = ? AND status != 'cancelled'";
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) return []; 
+        
         $stmt->bind_param("is", $venue_id, $date);
         $stmt->execute();
         
@@ -35,20 +113,12 @@ class Venue extends db_connection
         $blocked_hours = [];
         
         while ($row = $result->fetch_assoc()) {
-            $start_hour = intval(substr($row['event_time'], 0, 2)); // Extract HH
+            $start_hour = intval(substr($row['event_time'], 0, 2)); 
             $duration = intval($row['duration']);
-            
-            // Loop through the duration to block subsequent hours
             for ($i = 0; $i < $duration; $i++) {
-                $blocked_hour = $start_hour + $i;
-                $time_str = sprintf("%02d:00", $blocked_hour);
-                if (!in_array($time_str, $blocked_hours)) {
-                    $blocked_hours[] = $time_str;
-                }
+                $blocked_hours[] = sprintf("%02d:00", $start_hour + $i);
             }
         }
-        
         return $blocked_hours;
     }
 }
-?>

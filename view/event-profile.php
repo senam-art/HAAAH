@@ -13,7 +13,8 @@ $event_id = $_GET['id'];
 
 // 3. Fetch Data
 $event = get_event_details_ctr($event_id);
-$players = get_event_players_ctr($event_id);
+// Ensure players is always an array to prevent count() errors
+$players = get_event_players_ctr($event_id) ?: [];
 
 // 4. Check if event exists
 if (!$event) {
@@ -23,16 +24,34 @@ if (!$event) {
 // 5. Logic & Calculations
 // Use null coalescing (??) to handle potential missing database fields safely
 $min_players = intval($event['min_players'] ?? 0);
+// Fallback to 10 if min_players is 0 (matches JS logic)
+if ($min_players === 0) $min_players = 10; 
+
+// --- FEATURE: Substitutes Buffer ---
+$buffer_slots = 3; 
+$max_capacity = $min_players + $buffer_slots;
+
 $current_players_db = intval($event['current_players'] ?? 0);
 
-$players_list_count = (is_array($players)) ? count($players) : 0;
-$current_players = $players_list_count > 0 ? $players_list_count : $current_players_db;
+$players_list_count = count($players);
 
-$spots_left = max(0, $min_players - $current_players);
+// --- FIX 1: Prevent Counter Reset ---
+// Use max() to ensure we display the highest count between DB and List.
+$current_players = max($players_list_count, $current_players_db);
+
+// Calculate spots relative to minimum for confirmation status
+$spots_left_to_confirm = max(0, $min_players - $current_players);
+
+// Calculate total available spots (Main + Subs)
+$total_spots_left = max(0, $max_capacity - $current_players);
+
 $progress_percent = ($min_players > 0) ? min(100, ($current_players / $min_players) * 100) : 0;
 
 $status = $event['status'] ?? 'pending';
-$is_confirmed = ($status === 'confirmed');
+
+// --- LOGIC UPDATE: Auto-confirm if threshold is met ---
+// Checks if DB says 'confirmed' OR if players have met the minimum requirement
+$is_confirmed = ($status === 'confirmed' || $current_players >= $min_players);
 
 $organizer_username = $event['organizer_username'] ?? 'Unknown';
 $organizer_name = '@' . $organizer_username; 
@@ -63,7 +82,7 @@ $is_joined = false;
 $organizer_is_playing = false;
 $is_current_user_organizer = (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $organizer_id);
 
-if (is_array($players)) {
+if (!empty($players)) {
     foreach ($players as $p) {
         $pid = intval($p['id'] ?? 0);
         
@@ -76,7 +95,7 @@ if (is_array($players)) {
     }
 }
 
-// --- MODAL LOGIC ---
+// --- PHP MODAL LOGIC (Server Side Messages) ---
 $modal_type = isset($_GET['msg']) ? $_GET['msg'] : '';
 $show_modal = false;
 $modal_title = '';
@@ -203,7 +222,7 @@ if ($modal_type === 'already_joined') {
                                     <i data-lucide="clock" size="14"></i> Pending Green Light
                                 </span>
                             <?php endif; ?>
-                            <span class="text-gray-400"><?php echo $current_players; ?> / <?php echo $min_players; ?> Players Joined</span>
+                            <span class="text-gray-400"><?php echo $current_players; ?> / <?php echo $min_players; ?> Main Squad (+<?php echo $buffer_slots; ?> Subs)</span>
                         </div>
                         <div class="w-full bg-white/10 rounded-full h-3 mb-2 overflow-hidden">
                             <div class="bg-gradient-to-r <?php echo $is_confirmed ? 'from-green-600 to-brand-accent' : 'from-yellow-600 to-yellow-400'; ?> h-full rounded-full relative" style="width: <?php echo $progress_percent; ?>%">
@@ -212,9 +231,13 @@ if ($modal_type === 'already_joined') {
                         </div>
                         <p class="text-xs text-gray-500">
                             <?php if ($is_confirmed): ?>
-                                This game is ON! Venue is booked.
+                                <?php if($total_spots_left > 0): ?>
+                                    This game is ON! <strong><?php echo $total_spots_left; ?> substitute spots available</strong> for late joiners.
+                                <?php else: ?>
+                                    Full House! No substitute spots left.
+                                <?php endif; ?>
                             <?php else: ?>
-                                <?php echo $spots_left; ?> more players needed to confirm venue booking.
+                                <?php echo $spots_left_to_confirm; ?> more players needed to confirm venue booking.
                             <?php endif; ?>
                         </p>
                     </div>
@@ -243,43 +266,72 @@ if ($modal_type === 'already_joined') {
                         </div>
 
                         <!-- Players -->
-                        <?php if (is_array($players)): ?>
-                            <?php foreach($players as $player): ?>
-                                <?php 
+                        <?php if (!empty($players)): ?>
+                            <?php 
+                                $p_index = 0; 
+                                foreach($players as $player): 
                                     $p_id = intval($player['id'] ?? 0);
-                                    // Skip organizer in general list (they have the Host Card)
                                     if($p_id == $organizer_id) continue; 
                                     $p_username = $player['user_name'] ?? 'Player';
-                                ?>
-                                <div class="bg-brand-card p-4 rounded-xl border border-white/5">
+                                    
+                                    // Check if this player is a sub (joined after min_players)
+                                    // Note: Simple logic based on array order. Ideally, use join timestamp.
+                                    $is_sub = ($p_index + 1) > $min_players;
+                                    $p_index++;
+                            ?>
+                                <div class="bg-brand-card p-4 rounded-xl border <?php echo $is_sub ? 'border-orange-500/30' : 'border-white/5'; ?> relative">
+                                    <?php if($is_sub): ?>
+                                        <span class="absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-500 uppercase">Sub</span>
+                                    <?php endif; ?>
                                     <div class="flex items-center gap-3 mb-2">
                                         <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm text-white uppercase">
                                             <?php echo substr($p_username, 0, 2); ?>
                                         </div>
                                         <div>
                                             <div class="font-bold text-sm truncate max-w-[80px]">@<?php echo htmlspecialchars($p_username); ?></div>
-                                            <div class="text-xs text-gray-500">Player</div>
+                                            <div class="text-xs text-gray-500"><?php echo $is_sub ? 'Substitute' : 'Player'; ?></div>
                                         </div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
 
-                        <!-- Empty Slots -->
+                        <!-- Empty Slots (Including Buffer) -->
                         <?php 
-                            $slots_occupied = 0;
-                            if (is_array($players)) {
-                                $slots_occupied = count($players);
-                            }
-                            $target_slots = ($min_players > 0) ? $min_players : 10;
-                            $empty_slots_count = max(0, $target_slots - $slots_occupied);
+                            // Current occupied slots
+                            $slots_occupied = $current_players; 
+                            
+                            // Loop through empty slots up to Max Capacity (Min + Buffer)
+                            $empty_slots_count = max(0, $max_capacity - $slots_occupied);
                         ?>
                         <?php for($i = 0; $i < $empty_slots_count; $i++): ?>
-                            <a href="checkout.php?event_id=<?php echo $event_id; ?>&type=join_game" class="bg-brand-dark p-4 rounded-xl border-2 border-dashed border-white/10 hover:border-brand-accent/50 hover:bg-white/5 transition-all group flex flex-col items-center justify-center gap-2 h-full cursor-pointer">
-                                <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-accent group-hover:text-black transition-colors">
+                            <?php 
+                                // Calculate logical slot number (current occupied + this iteration + 1)
+                                $logical_slot_number = $slots_occupied + $i + 1;
+                                $is_sub_slot = $logical_slot_number > $min_players;
+                                
+                                // Styling for Sub Slots
+                                $slot_border = $is_sub_slot ? 'border-orange-500/20 border-dashed' : 'border-white/10 border-dashed border-2';
+                                $slot_text = $is_sub_slot ? 'Open Sub' : 'Open Slot';
+                                $slot_icon_color = $is_sub_slot ? 'text-orange-500' : 'text-gray-400';
+                                
+                                // Logic to prevent Double Slot Booking
+                                $slot_link = "checkout.php?event_id=$event_id&type=join_game";
+                                $slot_onclick = "";
+                                
+                                if ($is_joined) {
+                                    $slot_link = "javascript:void(0);";
+                                    $slot_onclick = "onclick=\"showJsModal('Slot Occupied', 'You are already occupying a slot in this squad!');\"";
+                                }
+                            ?>
+                            <a href="<?php echo $slot_link; ?>" <?php echo $slot_onclick; ?> class="bg-brand-dark p-4 rounded-xl <?php echo $slot_border; ?> hover:bg-white/5 transition-all group flex flex-col items-center justify-center gap-2 h-full cursor-pointer relative">
+                                <?php if($is_sub_slot): ?>
+                                    <span class="absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 uppercase">Buffer</span>
+                                <?php endif; ?>
+                                <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-accent group-hover:text-black transition-colors <?php echo $slot_icon_color; ?>">
                                     <i data-lucide="plus" size="16"></i>
                                 </div>
-                                <span class="text-xs font-bold text-gray-400 group-hover:text-white">Open Slot</span>
+                                <span class="text-xs font-bold text-gray-400 group-hover:text-white"><?php echo $slot_text; ?></span>
                             </a>
                         <?php endfor; ?>
                     </div>
@@ -395,7 +447,7 @@ if ($modal_type === 'already_joined') {
         </div>
     </div>
 
-    <!-- NOTIFICATION MODAL -->
+    <!-- PHP NOTIFICATION MODAL -->
     <?php if($show_modal): ?>
     <div id="notification-modal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
         <div class="bg-[#1a1a23] border border-white/10 rounded-2xl p-8 max-w-sm w-full shadow-2xl transform transition-all scale-100">
@@ -413,8 +465,48 @@ if ($modal_type === 'already_joined') {
     </div>
     <?php endif; ?>
 
+    <!-- JS ALERT MODAL (Dynamic) -->
+    <div id="js-alert-modal" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#1a1a23] border border-red-500/30 rounded-2xl p-8 max-w-sm w-full shadow-2xl transform transition-all scale-95">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-circle" class="w-8 h-8"></i>
+                </div>
+                <h3 id="js-modal-title" class="text-xl font-bold text-white mb-2">Alert</h3>
+                <p id="js-modal-msg" class="text-gray-400 text-sm mb-6">Message</p>
+                <button onclick="closeJsModal()" class="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors border border-white/5">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
+
+        // --- JS MODAL LOGIC ---
+        function showJsModal(title, msg) {
+            const modal = document.getElementById('js-alert-modal');
+            document.getElementById('js-modal-title').textContent = title;
+            document.getElementById('js-modal-msg').textContent = msg;
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+                modal.querySelector('div').classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeJsModal() {
+            const modal = document.getElementById('js-alert-modal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.remove('scale-100');
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
 
         // --- SHARE MODAL LOGIC ---
         function shareEvent() {
