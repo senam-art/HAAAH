@@ -217,7 +217,7 @@ if ($modal_type === 'venue_submitted_for_review') {
             <!-- GUEST HEADER ACTIONS -->
             <div id="header-guest" class="flex items-center gap-3">
                 <a href="login.php" class="hidden sm:flex items-center gap-2 px-6 py-2 bg-transparent text-white font-bold hover:text-brand-accent transition-colors text-sm">Log In</a>
-                <a href="register.php" class="px-5 py-2 bg-white text-black font-bold rounded-full text-sm hover:bg-gray-200 transition-colors">Sign Up</a>
+                <a href="sign_up.php" class="px-5 py-2 bg-white text-black font-bold rounded-full text-sm hover:bg-gray-200 transition-colors">Sign Up</a>
             </div>
 
             <!-- USER HEADER ACTIONS -->

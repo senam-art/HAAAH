@@ -1,7 +1,6 @@
 <?php 
-
 require_once __DIR__ . '/../settings/core.php'; 
-redirectIfLoggedIn()
+// redirectIfLoggedIn() // Uncomment if your core.php is set up
 ?>
 
 <!DOCTYPE html>
@@ -39,21 +38,20 @@ redirectIfLoggedIn()
             </div>
 
             <form id="signupForm" class="space-y-5" novalidate>
-                <div id="formMessage" class="text-center text-sm hidden p-3 rounded-xl mb-4 font-bold"></div>
+                <div id="formMessage" class="hidden"></div>
 
-                <!-- ROLE SELECTOR -->
                 <div>
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-2">I am a...</label>
                     <div class="grid grid-cols-2 gap-3">
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="role" value="0" checked class="peer sr-only" onchange="togglePlayerFields()">
+                            <input type="radio" name="role" value="0" checked class="peer sr-only">
                             <div class="p-4 rounded-xl bg-brand-dark border border-white/10 text-center transition-all peer-checked:border-brand-accent peer-checked:bg-brand-accent/10 peer-checked:text-brand-accent hover:bg-white/5">
                                 <i data-lucide="user" class="mx-auto mb-1" size="20"></i>
                                 <span class="text-sm font-bold">Player</span>
                             </div>
                         </label>
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="role" value="1" class="peer sr-only" onchange="togglePlayerFields()">
+                            <input type="radio" name="role" value="1" class="peer sr-only">
                             <div class="p-4 rounded-xl bg-brand-dark border border-white/10 text-center transition-all peer-checked:border-brand-purple peer-checked:bg-brand-purple/10 peer-checked:text-brand-purple hover:bg-white/5">
                                 <i data-lucide="building-2" class="mx-auto mb-1" size="20"></i>
                                 <span class="text-sm font-bold">Venue Manager</span>
@@ -62,7 +60,6 @@ redirectIfLoggedIn()
                     </div>
                 </div>
 
-                <!-- BASIC INFO -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">First Name</label>
@@ -87,7 +84,6 @@ redirectIfLoggedIn()
                     <input name="location" required type="text" placeholder="e.g. East Legon" class="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-sm focus:border-brand-accent focus:outline-none text-white">
                 </div>
 
-                <!-- PLAYER ATTRIBUTES -->
                 <div id="playerAttributesSection" class="bg-black/20 p-5 rounded-2xl border border-white/5 space-y-4 animate-fade-in transition-all duration-300">
                     <div class="flex items-center gap-2 mb-2">
                         <i data-lucide="shirt" class="text-brand-accent" size="18"></i>
@@ -118,7 +114,6 @@ redirectIfLoggedIn()
                     </div>
                 </div>
 
-                <!-- PASSWORD -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
@@ -137,26 +132,11 @@ redirectIfLoggedIn()
         </div>
     </main>
 
-    <script src="../js/sign_up.js"></script>
+    <script src="../js/sign_up.js"></script> 
+    
     <script>
+        // Only initializing icons here. Logic is in the external file.
         lucide.createIcons();
-
-        // Force toggle logic inline to guarantee behavior
-        function togglePlayerFields() {
-            const role = document.querySelector('input[name="role"]:checked').value;
-            const section = document.getElementById('playerAttributesSection');
-            
-            if (role === '0') { // Player
-                section.classList.remove('hidden');
-            } else { // Manager (1)
-                section.classList.add('hidden');
-            }
-        }
-
-        // Run on load
-        document.addEventListener('DOMContentLoaded', () => {
-            togglePlayerFields();
-        });
     </script>
 </body>
 </html>

@@ -1,31 +1,46 @@
-console.log("✅ sign_up.js loaded.");
-
-// 1. Toggle UI based on selection
-function togglePlayerFields() {
-    const role = document.querySelector('input[name="role"]:checked').value;
-    const section = document.getElementById('playerAttributesSection');
-    
-    // Role 0 = Player, Role 1 = Venue Manager
-    if (role === '0') { 
-        section.classList.remove('hidden');
-    } else { 
-        section.classList.add('hidden');
-    }
-}
+// ../js/sign_up.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // Run toggle once on load to set initial state
-    togglePlayerFields();
+    console.log("✅ sign_up.js loaded.");
 
     const form = document.getElementById('signupForm');
     const msgBox = document.getElementById('formMessage');
     const btn = document.getElementById('submitBtn');
+    const roleInputs = document.querySelectorAll('input[name="role"]');
+    const playerSection = document.getElementById('playerAttributesSection');
 
+    // --- 1. HANDLE UI TOGGLING (Event Listeners) ---
+    function togglePlayerFields() {
+        // Find the currently checked role
+        const checkedRole = document.querySelector('input[name="role"]:checked');
+        
+        if (checkedRole && checkedRole.value === '0') {
+            // Player Selected
+            playerSection.classList.remove('hidden');
+            playerSection.classList.add('block'); // Ensure it displays
+        } else {
+            // Manager Selected
+            playerSection.classList.add('hidden');
+            playerSection.classList.remove('block');
+        }
+    }
+
+    // Attach change listeners to radio buttons
+    roleInputs.forEach(input => {
+        input.addEventListener('change', togglePlayerFields);
+    });
+
+    // Run once on load to set initial state
+    togglePlayerFields();
+
+    // --- 2. HANDLE FORM SUBMISSION ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        // --- CLIENT VALIDATION ---
+        // Clear previous messages
+        msgBox.classList.add('hidden');
+
+        // Client Validation
         const p1 = document.getElementById('password').value;
         const p2 = document.getElementById('confirmPassword').value;
 
@@ -39,11 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // --- SUBMISSION ---
+        // Prepare Submission
         const formData = new FormData(form);
+        const originalText = btn.innerHTML;
         
         // Loading State
-        const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Creating Account...`;
 
@@ -58,45 +73,44 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.success) {
                 showMessage("Success! Redirecting...", "success");
                 
-                // --- REDIRECTION LOGIC (Frontend Based) ---
-                // 1. Get the value of the actively checked radio button
+                // Determine Redirect Destination
                 const activeRole = document.querySelector('input[name="role"]:checked').value;
-                
-                // 2. Determine destination
                 let targetPage = 'homepage.php'; // Default (Player)
                 
-                if (activeRole === '1') {
-                    targetPage = 'manage_venues.php'; // Venue Manager
-                } else if (activeRole === '2') {
-                    targetPage = 'admin_dashboard.php'; // Admin (if applicable)
-                }
+                if (activeRole === '1') targetPage = 'manage_venues.php';
+                else if (activeRole === '2') targetPage = 'admin_dashboard.php';
 
-                // 3. Redirect
                 setTimeout(() => {
                     window.location.href = targetPage;
                 }, 1000);
 
             } else {
                 showMessage(result.message || "Registration failed.", "error");
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                resetBtn(btn, originalText);
             }
         } catch (error) {
-            console.error(error);
-            showMessage("Server connection error.", "error");
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            console.error("AJAX Error:", error);
+            showMessage("Server connection error. Check console.", "error");
+            resetBtn(btn, originalText);
         }
     });
 
+    // Helper: Reset Button
+    function resetBtn(button, text) {
+        button.disabled = false;
+        button.innerHTML = text;
+    }
+
+    // Helper: Show Message
     function showMessage(msg, type) {
         msgBox.textContent = msg;
-        msgBox.classList.remove('hidden', 'bg-red-500/20', 'text-red-400', 'bg-green-500/20', 'text-green-400', 'border-red-500/30', 'border-green-500/30');
+        // Reset classes to base state
+        msgBox.className = "text-center text-sm p-3 rounded-xl mb-4 font-bold border";
         
         if (type === 'error') {
-            msgBox.classList.add('bg-red-500/20', 'text-red-400', 'border', 'border-red-500/30');
+            msgBox.classList.add('bg-red-500/20', 'text-red-400', 'border-red-500/30');
         } else {
-            msgBox.classList.add('bg-green-500/20', 'text-green-400', 'border', 'border-green-500/30');
+            msgBox.classList.add('bg-green-500/20', 'text-green-400', 'border-green-500/30');
         }
         msgBox.classList.remove('hidden');
     }
