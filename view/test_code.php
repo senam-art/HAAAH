@@ -1,12 +1,17 @@
 <?php
 /**
- * PERMISSION + FILE WRITE TEST (FIXED PATH)
+ * LOCATE AND DISPLAY EXISTING UPLOAD IMAGE
  */
 
-// ✅ uploads folder lives in public_html
-$uploadsDir = dirname(__DIR__, 2) . '/uploads';
-$relativeUploads = '../uploads'; // for browser access
-$testSubDir = $uploadsDir . '/test_folder';
+// ✅ Base uploads folder in public_html
+$uploadsDir = dirname(__DIR__, 2) . '/uploads'; // e.g., /home/senam.dzomeku/public_html/uploads
+$relativeUploads = '../uploads'; // browser-accessible path
+
+// Example: user folder and file
+$userFolder = 'u19/p12';
+$filename   = '1764241335_instagram-logo_976174-11.jpg copy.png';
+$filePath   = $uploadsDir . '/' . $userFolder . '/' . $filename;
+$fileUrl    = $relativeUploads . '/' . $userFolder . '/' . $filename;
 
 // ================================
 function perms($path) {
@@ -15,68 +20,23 @@ function perms($path) {
 }
 
 $results = [];
-
-$results['Current script dir'] = __DIR__;
-$results['Resolved uploads dir'] = $uploadsDir;
 $results['Uploads dir exists'] = is_dir($uploadsDir) ? 'YES' : 'NO';
 $results['Uploads dir perms'] = perms($uploadsDir);
 $results['Uploads writable'] = is_writable($uploadsDir) ? 'YES' : 'NO';
 
-// ================================
-// CREATE SUBFOLDER
-// ================================
-if (is_writable($uploadsDir)) {
-    if (!is_dir($testSubDir)) {
-        if (mkdir($testSubDir, 0775, true)) {
-            $results['Test folder created'] = 'YES';
-        } else {
-            $results['Test folder created'] = 'FAILED';
-        }
-    } else {
-        $results['Test folder created'] = 'ALREADY EXISTS';
-    }
-} else {
-    $results['Test folder created'] = 'SKIPPED (uploads not writable)';
-}
+$results['User folder exists'] = is_dir($uploadsDir . '/' . $userFolder) ? 'YES' : 'NO';
+$results['User folder perms'] = perms($uploadsDir . '/' . $userFolder);
+$results['User folder writable'] = is_writable($uploadsDir . '/' . $userFolder) ? 'YES' : 'NO';
 
-$results['Test folder perms'] = perms($testSubDir);
-$results['Test folder writable'] = is_writable($testSubDir) ? 'YES' : 'NO';
-
-// ================================
-// CREATE TEST IMAGE
-// ================================
-$imagePath = $testSubDir . '/permission_test.png';
-$imageCreated = false;
-
-if (is_writable($testSubDir)) {
-    $img = imagecreatetruecolor(240, 120);
-    $bg  = imagecolorallocate($img, 70, 160, 220);
-    $txt = imagecolorallocate($img, 255, 255, 255);
-
-    imagefill($img, 0, 0, $bg);
-    imagestring($img, 5, 40, 50, 'WRITE OK', $txt);
-
-    if (imagepng($img, $imagePath)) {
-        $imageCreated = true;
-        $results['Image created'] = 'YES';
-    } else {
-        $results['Image created'] = 'FAILED';
-    }
-    imagedestroy($img);
-} else {
-    $results['Image created'] = 'SKIPPED (no write access)';
-}
-
-// ================================
-// BROWSER PATH
-// ================================
-$imageUrl = $relativeUploads . '/test_folder/permission_test.png';
+$results['File exists'] = file_exists($filePath) ? 'YES' : 'NO';
+$results['File perms'] = perms($filePath);
+$results['File readable'] = is_readable($filePath) ? 'YES' : 'NO';
 ?>
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Server Permission Test</title>
+    <title>Locate Uploaded Image</title>
     <style>
         body { font-family: Arial; margin: 40px; }
         table { border-collapse: collapse; width: 800px; }
@@ -89,28 +49,28 @@ $imageUrl = $relativeUploads . '/test_folder/permission_test.png';
 </head>
 <body>
 
-<h1>✅ Server Permission & Path Resolution Test</h1>
+<h1>📁 Uploaded Image Check</h1>
 
 <table>
 <?php foreach ($results as $k => $v): ?>
     <tr>
         <th><?= htmlspecialchars($k) ?></th>
-        <td class="<?= in_array($v, ['YES','ALREADY EXISTS']) ? 'ok' : 'bad' ?>">
+        <td class="<?= in_array($v, ['YES']) ? 'ok' : 'bad' ?>">
             <?= htmlspecialchars($v) ?>
         </td>
     </tr>
 <?php endforeach; ?>
 </table>
 
-<h2>Filesystem</h2>
-<code><?= htmlspecialchars($uploadsDir) ?></code>
+<h2>Filesystem Path</h2>
+<code><?= htmlspecialchars($filePath) ?></code>
 
 <h2>Browser Test</h2>
-<?php if ($imageCreated): ?>
+<?php if (file_exists($filePath)): ?>
     <p class="ok">✅ Image loaded successfully</p>
-    <img src="<?= htmlspecialchars($imageUrl) ?>">
+    <img src="<?= htmlspecialchars($fileUrl) ?>" style="max-width: 600px; height: auto;">
 <?php else: ?>
-    <p class="bad">❌ Image not created</p>
+    <p class="bad">❌ Image not found</p>
 <?php endif; ?>
 
 </body>
