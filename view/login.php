@@ -62,7 +62,7 @@ hasLoggedIn();
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="block text-xs font-bold text-gray-500 uppercase">Password</label>
-                        <a href="#" class="text-xs text-brand-accent hover:underline">Forgot?</a>
+                        <!-- <a href="#" class="text-xs text-brand-accent hover:underline">Forgot?</a> -->
                     </div>
                     <div class="relative">
                         <i data-lucide="lock" class="absolute left-3 top-3 text-gray-500" size="18"></i>

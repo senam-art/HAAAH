@@ -6,7 +6,7 @@ require_once __DIR__ . '/../controllers/guest_controller.php';
 
 // 2. Get Event ID
 if (!isset($_GET['id'])) {
-    header("Location: index.php");
+    header("Location: homepage.php");
     exit();
 }
 $event_id = $_GET['id'];
@@ -22,9 +22,7 @@ if (!$event) {
 }
 
 // 5. Logic & Calculations
-// Use null coalescing (??) to handle potential missing database fields safely
 $min_players = intval($event['min_players'] ?? 0);
-// Fallback to 10 if min_players is 0 (matches JS logic)
 if ($min_players === 0) $min_players = 10; 
 
 // --- FEATURE: Substitutes Buffer ---
@@ -32,25 +30,14 @@ $buffer_slots = 3;
 $max_capacity = $min_players + $buffer_slots;
 
 $current_players_db = intval($event['current_players'] ?? 0);
-
 $players_list_count = count($players);
-
-// --- FIX 1: Prevent Counter Reset ---
-// Use max() to ensure we display the highest count between DB and List.
 $current_players = max($players_list_count, $current_players_db);
 
-// Calculate spots relative to minimum for confirmation status
 $spots_left_to_confirm = max(0, $min_players - $current_players);
-
-// Calculate total available spots (Main + Subs)
 $total_spots_left = max(0, $max_capacity - $current_players);
-
 $progress_percent = ($min_players > 0) ? min(100, ($current_players / $min_players) * 100) : 0;
 
 $status = $event['status'] ?? 'pending';
-
-// --- LOGIC UPDATE: Auto-confirm if threshold is met ---
-// Checks if DB says 'confirmed' OR if players have met the minimum requirement
 $is_confirmed = ($status === 'confirmed' || $current_players >= $min_players);
 
 $organizer_username = $event['organizer_username'] ?? 'Unknown';
@@ -68,7 +55,7 @@ $event_time_str = $event['event_time'] ?? '00:00';
 $formatted_date = date('D, M j', strtotime($event_date_str));
 $formatted_time = date('H:i', strtotime($event_time_str));
 
-// Location Data for Map
+// Location Data
 $venue_name = $event['venue_name'] ?? 'Unknown Venue';
 $venue_address = $event['venue_address'] ?? 'Accra, Ghana';
 $venue_lat = isset($event['latitude']) ? floatval($event['latitude']) : null;
@@ -77,15 +64,15 @@ $venue_lng = isset($event['longitude']) ? floatval($event['longitude']) : null;
 $event_title = $event['title'] ?? 'Untitled Event';
 $event_format = $event['format'] ?? 'Sport';
 
-// Check Membership (Is current user already joined?)
+// Check Membership
 $is_joined = false;
 $organizer_is_playing = false;
 $is_current_user_organizer = (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $organizer_id);
+$viewer_logged_in = isset($_SESSION['user_id']); 
 
 if (!empty($players)) {
     foreach ($players as $p) {
         $pid = intval($p['id'] ?? 0);
-        
         if (isset($_SESSION['user_id']) && $pid == $_SESSION['user_id']) {
             $is_joined = true;
         }
@@ -95,7 +82,7 @@ if (!empty($players)) {
     }
 }
 
-// --- PHP MODAL LOGIC (Server Side Messages) ---
+// --- PHP MODAL LOGIC ---
 $modal_type = isset($_GET['msg']) ? $_GET['msg'] : '';
 $show_modal = false;
 $modal_title = '';
@@ -103,35 +90,17 @@ $modal_msg = '';
 $modal_icon = 'info'; 
 
 if ($modal_type === 'already_joined') {
-    $show_modal = true;
-    $modal_title = "You're already in!";
-    $modal_msg = "You are already on the squad list for this game. See you on the pitch!";
-    $modal_icon = 'check-circle';
+    $show_modal = true; $modal_title = "You're already in!"; $modal_msg = "You are already on the squad list."; $modal_icon = 'check-circle';
 } elseif ($modal_type === 'already_published') {
-    $show_modal = true;
-    $modal_title = "Already Published";
-    $modal_msg = "This event is already live. No need to pay the commitment fee again.";
-    $modal_icon = 'check-circle';
+    $show_modal = true; $modal_title = "Already Published"; $modal_msg = "This event is already live."; $modal_icon = 'check-circle';
 } elseif ($modal_type === 'joined') {
-    $show_modal = true;
-    $modal_title = "Welcome to the Squad!";
-    $modal_msg = "Payment successful. You have secured your spot.";
-    $modal_icon = 'check-circle';
+    $show_modal = true; $modal_title = "Welcome to the Squad!"; $modal_msg = "Payment successful. You have secured your spot."; $modal_icon = 'check-circle';
 } elseif ($modal_type === 'published') {
-    $show_modal = true;
-    $modal_title = "Event Published!";
-    $modal_msg = "Your game is now live. Share the link to get players!";
-    $modal_icon = 'check-circle';
+    $show_modal = true; $modal_title = "Event Published!"; $modal_msg = "Your game is now live."; $modal_icon = 'check-circle';
 } elseif ($modal_type === 'host_joined') {
-    $show_modal = true;
-    $modal_title = "You're Playing!";
-    $modal_msg = "You have successfully added yourself to the roster.";
-    $modal_icon = 'check-circle';
+    $show_modal = true; $modal_title = "You're Playing!"; $modal_msg = "You have successfully added yourself."; $modal_icon = 'check-circle';
 } elseif ($modal_type === 'host_left') {
-    $show_modal = true;
-    $modal_title = "Spot Removed";
-    $modal_msg = "You have removed yourself from the playing roster.";
-    $modal_icon = 'info';
+    $show_modal = true; $modal_title = "Spot Removed"; $modal_msg = "You have removed yourself from the roster."; $modal_icon = 'info';
 }
 ?>
 <!DOCTYPE html>
@@ -142,19 +111,11 @@ if ($modal_type === 'already_joined') {
     <title><?php echo htmlspecialchars($event_title); ?> - Match Lobby</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Google Maps API -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDgP6xqZcN4y50x2kq8cbytyD-k4OY1Sis&libraries=places"></script>
 
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { dark: '#0f0f13', card: '#1a1a23', accent: '#3dff92', purple: '#7000ff' }
-                    },
-                    fontFamily: { sans: ['Inter', 'sans-serif'] }
-                }
-            }
+            theme: { extend: { colors: { brand: { dark: '#0f0f13', card: '#1a1a23', accent: '#3dff92', purple: '#7000ff' } }, fontFamily: { sans: ['Inter', 'sans-serif'] } } }
         }
     </script>
     <style>
@@ -176,8 +137,6 @@ if ($modal_type === 'already_joined') {
                 <i data-lucide="share-2" size="20"></i>
             </button>
             <?php if (!$is_joined && !$is_current_user_organizer): ?>
-                <a href="checkout.php?event_id=<?php echo $event_id; ?>&type=join_game" class="relative p-2 text-brand-accent hover:text-white">
-                    <i data-lucide="shopping-cart" size="20"></i>
                     <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                 </a>
             <?php endif; ?>
@@ -249,8 +208,13 @@ if ($modal_type === 'already_joined') {
                         <i data-lucide="users" class="text-brand-accent"></i> Squad List
                     </h3>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <!-- Host -->
-                        <div class="bg-brand-card p-4 rounded-xl border <?php echo $organizer_is_playing ? 'border-brand-accent shadow-[0_0_10px_rgba(61,255,146,0.1)]' : 'border-white/10 border-dashed'; ?> relative transition-all">
+                        
+                        <!-- Host (Linked if logged in, redirects to login if guest) -->
+                        <?php 
+                            $hostTag = 'a';
+                            $hostHref = $viewer_logged_in ? 'href="profile.php?id=' . $organizer_id . '"' : 'href="login.php?msg=login_to_view_profile"';
+                        ?>
+                        <<?php echo $hostTag; ?> <?php echo $hostHref; ?> class="bg-brand-card p-4 rounded-xl border <?php echo $organizer_is_playing ? 'border-brand-accent shadow-[0_0_10px_rgba(61,255,146,0.1)]' : 'border-white/10 border-dashed'; ?> relative transition-all hover:bg-white/5 cursor-pointer">
                             <span class="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded <?php echo $organizer_is_playing ? 'bg-brand-accent text-black' : 'bg-white/10 text-gray-400'; ?>">
                                 <?php echo $organizer_is_playing ? 'HOST • PLAYING' : 'HOST ONLY'; ?>
                             </span>
@@ -263,9 +227,9 @@ if ($modal_type === 'already_joined') {
                                     <div class="text-xs text-gray-500">Organizer</div>
                                 </div>
                             </div>
-                        </div>
+                        </<?php echo $hostTag; ?>>
 
-                        <!-- Players -->
+                        <!-- Players (Linked if logged in, redirects to login if guest) -->
                         <?php if (!empty($players)): ?>
                             <?php 
                                 $p_index = 0; 
@@ -274,12 +238,14 @@ if ($modal_type === 'already_joined') {
                                     if($p_id == $organizer_id) continue; 
                                     $p_username = $player['user_name'] ?? 'Player';
                                     
-                                    // Check if this player is a sub (joined after min_players)
-                                    // Note: Simple logic based on array order. Ideally, use join timestamp.
                                     $is_sub = ($p_index + 1) > $min_players;
                                     $p_index++;
+                                    
+                                    // Dynamic Link Logic
+                                    $pTag = 'a';
+                                    $pHref = $viewer_logged_in ? 'href="profile.php?id=' . $p_id . '"' : 'href="login.php?msg=login_to_view_profile"';
                             ?>
-                                <div class="bg-brand-card p-4 rounded-xl border <?php echo $is_sub ? 'border-orange-500/30' : 'border-white/5'; ?> relative">
+                                <<?php echo $pTag; ?> <?php echo $pHref; ?> class="bg-brand-card p-4 rounded-xl border <?php echo $is_sub ? 'border-orange-500/30' : 'border-white/5'; ?> relative transition-colors hover:border-white/20 cursor-pointer">
                                     <?php if($is_sub): ?>
                                         <span class="absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-500 uppercase">Sub</span>
                                     <?php endif; ?>
@@ -292,30 +258,25 @@ if ($modal_type === 'already_joined') {
                                             <div class="text-xs text-gray-500"><?php echo $is_sub ? 'Substitute' : 'Player'; ?></div>
                                         </div>
                                     </div>
-                                </div>
+                                </<?php echo $pTag; ?>>
                             <?php endforeach; ?>
                         <?php endif; ?>
 
-                        <!-- Empty Slots (Including Buffer) -->
+                        <!-- Empty Slots -->
                         <?php 
-                            // Current occupied slots
                             $slots_occupied = $current_players; 
-                            
-                            // Loop through empty slots up to Max Capacity (Min + Buffer)
+                            $target_slots = ($min_players > 0) ? $min_players : 10;
                             $empty_slots_count = max(0, $max_capacity - $slots_occupied);
                         ?>
                         <?php for($i = 0; $i < $empty_slots_count; $i++): ?>
                             <?php 
-                                // Calculate logical slot number (current occupied + this iteration + 1)
                                 $logical_slot_number = $slots_occupied + $i + 1;
                                 $is_sub_slot = $logical_slot_number > $min_players;
                                 
-                                // Styling for Sub Slots
                                 $slot_border = $is_sub_slot ? 'border-orange-500/20 border-dashed' : 'border-white/10 border-dashed border-2';
                                 $slot_text = $is_sub_slot ? 'Open Sub' : 'Open Slot';
                                 $slot_icon_color = $is_sub_slot ? 'text-orange-500' : 'text-gray-400';
                                 
-                                // Logic to prevent Double Slot Booking
                                 $slot_link = "checkout.php?event_id=$event_id&type=join_game";
                                 $slot_onclick = "";
                                 

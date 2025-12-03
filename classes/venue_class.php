@@ -90,7 +90,22 @@ class Venue extends db_connection
         
         return $stmt->execute();
     }
-    
+
+    // --- NEW: Fetch Popular Venues (Top 3 Rated) ---
+    public function get_popular_venues()
+    {
+        // Only fetch venues that are Active, Not Deleted, and have a Rating
+        $sql = "SELECT venue_id, name, address, rating FROM venues 
+                WHERE is_active = 1 AND is_deleted = 0 AND rating IS NOT NULL 
+                ORDER BY rating DESC LIMIT 3";
+        
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) return [];
+        
+        $stmt->execute();
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
+
     public function get_booked_slots($venue_id, $date)
     {
         // Check if duration exists (Legacy support)

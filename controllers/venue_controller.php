@@ -226,4 +226,10 @@ function delete_venue_ctr($venue_id) {
     
     return $venue->delete_venue($venue_id, $_SESSION['user_id']);
 }
+
+// --- NEW: Get Popular Venues ---
+function get_popular_venues_ctr() {
+    $venue = new Venue();
+    return $venue->get_popular_venues();
+}
 ?>

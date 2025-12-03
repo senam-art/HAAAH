@@ -1,4 +1,5 @@
 <?php
+// actions/get_profile_data.php
 // 1. Bootstrap Core (Standard Pattern)
 require_once __DIR__ . '/../settings/core.php';
 
@@ -7,10 +8,12 @@ require_once PROJECT_ROOT . '/controllers/user_controller.php';
 require_once PROJECT_ROOT . '/controllers/guest_controller.php';
 
 // 3. Security Check (Using helper from core.php)
+// Ensures only logged-in users can view profiles
 check_login(); 
 
 // 4. Determine Context (Who is viewing whom?)
 $viewer_id = get_user_id(); // From core.php helper
+
 // If ?id=X is set in URL, view that user. Otherwise, view self.
 $profile_id = isset($_GET['id']) ? intval($_GET['id']) : $viewer_id;
 
@@ -27,14 +30,20 @@ if (!$user_data) {
 // 6. Parse Personalization Tags (JSON)
 $profile_tags = [
     'positions' => [],
-    'traits' => []
+    'traits' => [],
+    'profile_image' => null
 ];
 
+// Handle profile details JSON if present
 if (!empty($user_data['profile_details'])) {
     $decoded = json_decode($user_data['profile_details'], true);
     if (is_array($decoded)) {
         $profile_tags = array_merge($profile_tags, $decoded);
     }
+}
+// Prioritize explicit profile_image column if available in data
+if (isset($user_data['profile_image']) && !empty($user_data['profile_image'])) {
+    $profile_tags['profile_image'] = $user_data['profile_image'];
 }
 
 // 7. Fetch Events (Using GuestController)
@@ -50,7 +59,7 @@ if (function_exists('get_booked_events_ctr')) {
     $all_bookings = get_booked_events_ctr($profile_id);
 }
 
-// Only expose the detailed list (financials) if it's the owner viewing
+// Only expose the detailed list (financials/history) if it's the owner viewing
 $booked_events = [];
 if ($is_own_profile) {
     $booked_events = $all_bookings;
@@ -71,7 +80,7 @@ $user_stats = [
     // Real Data: Count of games they have actually booked/joined
     'matches' => count($all_bookings), 
     
-    // Dummy Data: Hardcoded for visualization purposes
+    // Dummy Data: Hardcoded for visualization purposes until stats module is built
     'goals' => 12, 
     'mvps' => 3, 
     'rating' => 4.8 

@@ -2,7 +2,7 @@
 // 1. Bootstrap Core
 require_once __DIR__ . '/../settings/core.php';
 
-// 2. Load Logic
+// 2. Load Logic (Handles ID fetching and DB queries)
 require_once PROJECT_ROOT . '/actions/get_profile_data.php';
 
 // 3. Determine Profile Picture
@@ -60,31 +60,15 @@ $profile_pic_path = $profile_tags['profile_image'] ?? null;
         <!-- Error/Success Messages -->
         <?php if (isset($_GET['error'])): ?>
             <?php
-                // Map error codes to friendly messages
                 $error_code = $_GET['error'];
                 $error_msg = "An unknown error occurred.";
-                
                 switch($error_code) {
-                    case 'directory_create_failed':
-                        $error_msg = "Server Error: Could not create upload directory. Please contact support.";
-                        break;
-                    case 'upload_failed':
-                        $error_msg = "Upload failed. Please select a valid file.";
-                        break;
-                    case 'invalid_file_type':
-                        $error_msg = "Invalid file type. Please use JPG, PNG, or WEBP.";
-                        break;
-                    case 'file_too_large':
-                        $error_msg = "File is too large. Maximum size is 5MB.";
-                        break;
-                    case 'db_update_failed':
-                        $error_msg = "Image uploaded, but database update failed.";
-                        break;
-                    case 'move_failed':
-                        $error_msg = "Failed to save file to server.";
-                        break;
-                    default:
-                        $error_msg = "Error: " . htmlspecialchars($error_code);
+                    case 'directory_create_failed': $error_msg = "Server Error: Could not create upload directory."; break;
+                    case 'upload_failed': $error_msg = "Upload failed. Please select a valid file."; break;
+                    case 'invalid_file_type': $error_msg = "Invalid file type. Please use JPG, PNG, or WEBP."; break;
+                    case 'file_too_large': $error_msg = "File is too large. Maximum size is 5MB."; break;
+                    case 'db_update_failed': $error_msg = "Image uploaded, but database update failed."; break;
+                    case 'move_failed': $error_msg = "Failed to save file to server."; break;
                 }
             ?>
             <div class="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-bold text-center">
@@ -314,21 +298,48 @@ $profile_pic_path = $profile_tags['profile_image'] ?? null;
                 <?php else: ?>
                      <h3 class="font-bold text-xl text-gray-300">Actions</h3>
                      <div class="bg-brand-card rounded-xl border border-white/5 overflow-hidden">
-                        <button class="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5 text-left">
+                        <!-- Share Button -->
+                        <button onclick="shareProfile()" class="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5 text-left">
                             <div class="flex items-center gap-3">
                                 <i data-lucide="share-2" size="18" class="text-gray-400"></i>
                                 <span class="text-sm font-medium">Share Profile</span>
                             </div>
                         </button>
-                        <button class="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left">
+                        
+                        <!-- Report Button (Greyed out) -->
+                        <button disabled class="w-full flex items-center justify-between p-4 opacity-50 cursor-not-allowed text-left relative">
                             <div class="flex items-center gap-3">
                                 <i data-lucide="flag" size="18" class="text-red-400"></i>
                                 <span class="text-sm font-medium text-red-400">Report User</span>
                             </div>
+                            <span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-gray-400 font-bold uppercase tracking-wider">Soon</span>
                         </button>
                     </div>
                 <?php endif; ?>
             </div>
+        </div>
+    </div>
+    
+    <!-- SHARE MODAL (Hidden by default) -->
+    <div id="share-modal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#1a1a23] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl transform transition-all scale-95">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-white">Share Profile</h3>
+                <button onclick="closeShareModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="bg-black/30 p-3 rounded-xl border border-white/5 mb-4 flex items-center gap-2">
+                <input type="text" id="share-url" class="bg-transparent border-none text-gray-400 text-sm flex-1 focus:outline-none truncate" readonly>
+                <button onclick="copyToClipboard()" class="p-2 bg-brand-accent/10 text-brand-accent rounded-lg hover:bg-brand-accent/20 transition-colors" title="Copy">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <button id="native-share-btn" onclick="triggerNativeShare()" class="w-full py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors border border-white/10 flex items-center justify-center gap-2 hidden">
+                <i data-lucide="share-2" class="w-4 h-4"></i> Share via...
+            </button>
+            
+            <div id="copy-feedback" class="text-center text-xs text-green-500 mt-2 hidden">Link copied!</div>
         </div>
     </div>
 
@@ -355,6 +366,64 @@ $profile_pic_path = $profile_tags['profile_image'] ?? null;
                 activeBtn.classList.remove('border-transparent', 'text-gray-400');
                 activeBtn.classList.add('border-brand-accent', 'text-white');
             }
+        }
+
+         // --- SHARE MODAL LOGIC ---
+        function shareProfile() {
+            const modal = document.getElementById('share-modal');
+            const urlInput = document.getElementById('share-url');
+            const nativeBtn = document.getElementById('native-share-btn');
+            
+            urlInput.value = window.location.href;
+            
+            if (navigator.share) {
+                nativeBtn.classList.remove('hidden');
+            } else {
+                nativeBtn.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+                modal.querySelector('div').classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeShareModal() {
+            const modal = document.getElementById('share-modal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.remove('scale-100');
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('copy-feedback').classList.add('hidden');
+            }, 300);
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById("share-url");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            if (navigator.clipboard) {
+                 navigator.clipboard.writeText(copyText.value).then(() => showCopyFeedback());
+            } else {
+                document.execCommand("copy");
+                showCopyFeedback();
+            }
+        }
+
+        function showCopyFeedback() {
+             const feedback = document.getElementById('copy-feedback');
+             feedback.classList.remove('hidden');
+             setTimeout(() => feedback.classList.add('hidden'), 2000);
+        }
+
+        function triggerNativeShare() {
+            const title = <?php echo json_encode($username_display); ?>;
+            const text = 'Check out this profile on Haaah Sports!';
+            const url = window.location.href;
+            if (navigator.share) navigator.share({ title, text, url }).catch(console.error);
         }
     </script>
 </body>

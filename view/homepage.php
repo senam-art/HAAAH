@@ -1,31 +1,20 @@
 <?php
 require_once '../settings/core.php';
 require_once PROJECT_ROOT . '/controllers/user_controller.php';
-// 2. Load Logic
-require_once PROJECT_ROOT . '/actions/get_profile_data.php';
+require_once PROJECT_ROOT . '/controllers/venue_controller.php';
 
-// 3. Determine Profile Picture
-$profile_pic_path = $profile_tags['profile_image'] ?? null;
+// Initialize User Defaults (For Guests)
+$initials = 'U'; 
+$profile_pic_path = null;
 
-
-// 1. CAPTURE DATA FROM LANDING PAGE
-$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
-$lat = isset($_GET['lat']) ? floatval($_GET['lat']) : '';
-$lng = isset($_GET['lng']) ? floatval($_GET['lng']) : '';
-
-// 2. DYNAMIC HEADER LOGIC
-$games_header = "Open Games";
-if (!empty($search_term)) {
-    if ($search_term === 'Current Location') {
-        $games_header = "Open Games Near You";
-    } else {
-        $games_header = "Open Games in " . htmlspecialchars($search_term);
-    }
-}
-
-// 3. FETCH USER DATA (For Avatar/Initials)
-$initials = 'U'; // Default
+// 1. FETCH USER DATA (Only if logged in)
 if (isset($_SESSION['user_id'])) {
+    // Load Profile Data (Safely inside session check)
+    if (file_exists(PROJECT_ROOT . '/actions/get_profile_data.php')) {
+        include PROJECT_ROOT . '/actions/get_profile_data.php';
+        $profile_pic_path = $profile_tags['profile_image'] ?? null;
+    }
+
     $userController = new UserController();
     $current_user = $userController->get_user_by_id_ctr($_SESSION['user_id']);
     if ($current_user) {
@@ -36,23 +25,23 @@ if (isset($_SESSION['user_id'])) {
     }
 }
 
-// 4. FETCH POPULAR VENUES (Dynamic)
-$popular_venues = [];
-// Assuming DB constants are available from core.php -> db_class.php -> db_cred.php
-$conn = new mysqli(SERVER, USERNAME, PASSWD, DATABASE);
-if (!$conn->connect_error) {
-    // Fetch top 3 venues by rating
-    // Note: Ensure your 'venues' table has a 'rating' column.
-    $sql = "SELECT venue_id, name, address, rating FROM venues WHERE rating IS NOT NULL ORDER BY rating DESC LIMIT 3";
-    $result = $conn->query($sql);
-    
-    if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $popular_venues[] = $row;
-        }
+// 2. CAPTURE DATA FROM LANDING PAGE
+$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
+$lat = isset($_GET['lat']) ? floatval($_GET['lat']) : '';
+$lng = isset($_GET['lng']) ? floatval($_GET['lng']) : '';
+
+// 3. DYNAMIC HEADER LOGIC
+$games_header = "Open Games";
+if (!empty($search_term)) {
+    if ($search_term === 'Current Location') {
+        $games_header = "Open Games Near You";
+    } else {
+        $games_header = "Open Games in " . htmlspecialchars($search_term);
     }
-    $conn->close();
 }
+
+// 4. FETCH POPULAR VENUES (MVC Implementation)
+$popular_venues = get_popular_venues_ctr();
 
 // 5. MODAL LOGIC
 $modal_type = isset($_GET['msg']) ? $_GET['msg'] : '';
@@ -151,9 +140,14 @@ if ($modal_type === 'venue_submitted_for_review') {
             <a href="index.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20">
                 <i data-lucide="home" size="20"></i> <span class="text-sm">Browse Games</span>
             </a>
-            <a href="login.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
-                <i data-lucide="trophy" class="group-hover:text-brand-accent"></i> <span class="text-sm">Tournaments</span>
-            </a>
+            
+            <!-- Tournaments (Greyed Out) -->
+            <div class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-600 cursor-not-allowed opacity-60">
+                <i data-lucide="trophy"></i> 
+                <span class="text-sm">Tournaments</span>
+                <span class="ml-auto text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-gray-400">Soon</span>
+            </div>
+
             <a href="venue-portal.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
                 <i data-lucide="map-pin" class="group-hover:text-brand-accent"></i> <span class="text-sm">Find Venues</span>
             </a>
@@ -167,13 +161,19 @@ if ($modal_type === 'venue_submitted_for_review') {
                 <i data-lucide="layout-dashboard" class="text-brand-purple"></i> <span class="text-sm font-bold text-white">Dashboard</span>
             </a>
             
+            <!-- Create Event (Added) -->
+            <a href="create_event.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
+                <i data-lucide="plus-circle" class="group-hover:text-brand-accent"></i> <span class="text-sm">Host Game</span>
+            </a>
+
+            <!-- Find Venues (Added) -->
+            <a href="venue-portal.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
+                <i data-lucide="map-pin" class="group-hover:text-brand-accent"></i> <span class="text-sm">Find Venues</span>
+            </a>
+            
             <!-- Analytics Link -->
             <a href="analytics.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
                 <i data-lucide="receipt" class="group-hover:text-brand-accent"></i> <span class="text-sm">Orders & Bookings</span>
-            </a>
-
-            <a href="#" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
-                <i data-lucide="wallet" class="group-hover:text-brand-accent"></i> <span class="text-sm">Wallet</span>
             </a>
         </nav>
 
@@ -305,7 +305,7 @@ if ($modal_type === 'venue_submitted_for_review') {
                         <a href="login.php" class="block w-full py-2 bg-white/10 border border-white/10 rounded-lg text-sm font-bold hover:bg-white/20 transition-colors">Log In / Sign Up</a>
                     </div>
 
-                    <!-- Top Venues (Dynamic) -->
+                    <!-- Top Venues (Dynamic MVC) -->
                     <div class="bg-[#16161c] border border-white/5 rounded-xl p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold">Popular Pitches</h3>
@@ -319,7 +319,9 @@ if ($modal_type === 'venue_submitted_for_review') {
                                             <?php echo str_pad($index + 1, 2, '0', STR_PAD_LEFT); ?>
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <div class="font-bold text-sm text-white truncate"><?php echo htmlspecialchars($venue['name']); ?></div>
+                                            <a href="venue-profile.php?id=<?php echo $venue['venue_id']; ?>" class="font-bold text-sm text-white truncate hover:text-brand-accent transition-colors block">
+                                                <?php echo htmlspecialchars($venue['name']); ?>
+                                            </a>
                                             <div class="text-xs text-gray-500 truncate"><?php echo htmlspecialchars($venue['address']); ?></div>
                                         </div>
                                         <div class="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded text-yellow-500 text-xs font-bold whitespace-nowrap">
