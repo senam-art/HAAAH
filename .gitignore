@@ -1,5 +1,6 @@
 # Ignore uploads folder outside project
-../uploads/
+/uploads/
+
 settings/db_cred.php
 
 # Ignore log files

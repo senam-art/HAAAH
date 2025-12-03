@@ -6,7 +6,6 @@
 
 console.log("✅ create-event.js loaded. Starting sequence...");
 
-const UPLOADS_URL = "<?= UPLOADS_URL ?>"; // e.g., /~senam.dzomeku/uploads
 // --- GLOBAL STATE ---
 const STATE = {
     map: null,
@@ -220,23 +219,17 @@ function renderVenueCard() {
     let imagesHtml = '';
     let dotsHtml = '';
     if (venue.image_urls) {
-    let imgs = Array.isArray(venue.image_urls) ? venue.image_urls : [venue.image_urls];
-    if (typeof venue.image_urls === 'string' && venue.image_urls.startsWith('[')) {
-         try { imgs = JSON.parse(venue.image_urls); } catch(e) {}
-    }
-
-    if (imgs.length > 0) {
-            imagesHtml = imgs.map(url => {
-                // Fix URL dynamically: remove leading /uploads and prepend UPLOADS_URL
-                const safeUrl = UPLOADS_URL + url.replace(/^\/uploads/, '');
-                return `
-                    <div class="flex-none w-full h-full snap-center relative">
-                        <img src="${safeUrl}" class="w-full h-full object-cover" loading="lazy" />
-                        <div class="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent"></div>
-                    </div>
-                `;
-            }).join('');
-
+        let imgs = Array.isArray(venue.image_urls) ? venue.image_urls : [venue.image_urls];
+        if (typeof venue.image_urls === 'string' && venue.image_urls.startsWith('[')) {
+             try { imgs = JSON.parse(venue.image_urls); } catch(e) {}
+        }
+        if (imgs.length > 0) {
+            imagesHtml = imgs.map(url => `
+                <div class="flex-none w-full h-full snap-center relative">
+                    <img src="${url}" class="w-full h-full object-cover" loading="lazy" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent"></div>
+                </div>
+            `).join('');
             if (imgs.length > 1) {
                 dotsHtml = `<div class="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
                     ${imgs.map((_, i) => `<div class="w-1.5 h-1.5 rounded-full bg-white/50 backdrop-blur-sm ${i===0?'bg-brand-accent w-3':''}"></div>`).join('')}
@@ -244,7 +237,6 @@ function renderVenueCard() {
             }
         }
     }
-
     if (!imagesHtml) imagesHtml = `<div class="flex-none w-full h-full snap-center bg-gray-800 flex items-center justify-center"><span class="text-gray-500 text-xs">No photos</span></div>`;
 
     let amenitiesHtml = '<span class="text-xs text-gray-600 italic">No amenities listed</span>';
