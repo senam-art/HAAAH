@@ -176,7 +176,7 @@ if ($modal_type === 'venue_submitted_for_review') {
         <nav id="nav-user" class="hidden-force flex-1 px-4 py-4 space-y-2 overflow-y-auto">
             <div class="px-4 text-xs font-bold text-brand-purple uppercase tracking-wider mb-2">My Account</div>
             
-            <a href="dashboard.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
+            <a href="homepage.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-all group">
                 <i data-lucide="layout-dashboard" class="text-brand-purple"></i> <span class="text-sm font-bold text-white">Dashboard</span>
             </a>
             
