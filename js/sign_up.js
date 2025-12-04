@@ -1,8 +1,5 @@
-// ../js/sign_up.js
-
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("✅ sign_up.js loaded.");
-
+    
     const form = document.getElementById('signupForm');
     const msgBox = document.getElementById('formMessage');
     const btn = document.getElementById('submitBtn');
@@ -63,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Creating Account...`;
 
         try {
+            // Standard Production Fetch
             const response = await fetch('../actions/register_user_action.php', {
                 method: 'POST',
                 body: formData
@@ -74,11 +72,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 showMessage("Success! Redirecting...", "success");
                 
                 // Determine Redirect Destination
-                const activeRole = document.querySelector('input[name="role"]:checked').value;
-                let targetPage = 'homepage.php'; // Default (Player)
+                let targetPage = 'homepage.php'; // Default fallback
                 
-                if (activeRole === '1') targetPage = 'manage_venues.php';
-                else if (activeRole === '2') targetPage = 'admin_dashboard.php';
+                if (result.redirect) {
+                    targetPage = result.redirect;
+                } else {
+                    // Fallback client-side logic
+                    const activeRole = document.querySelector('input[name="role"]:checked').value;
+                    if (activeRole === '1') targetPage = 'manage_venues.php';
+                    else if (activeRole === '2') targetPage = 'admin_dashboard.php';
+                }
 
                 setTimeout(() => {
                     window.location.href = targetPage;
@@ -89,8 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 resetBtn(btn, originalText);
             }
         } catch (error) {
-            console.error("AJAX Error:", error);
-            showMessage("Server connection error. Check console.", "error");
+            console.error(error);
+            showMessage("An error occurred. Please try again.", "error");
             resetBtn(btn, originalText);
         }
     });
