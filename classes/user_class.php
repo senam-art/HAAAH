@@ -13,26 +13,32 @@ class User extends db_connection
     }
 
     /**
-     * Create User (Enhanced for Roles & Traits)
-     * Matches your original naming convention.
+     * Create User (Enhanced for Roles & Traits & Location Maps)
+     * UPDATED: Accepts address, lat, lng matching the new DB schema.
      */
-    public function create_user($first_name, $last_name, $email, $username, $password, $location, $role = 0, $profile_details = null)
+    public function create_user($first_name, $last_name, $email, $username, $password, $address, $lat, $lng, $role = 0, $profile_details = null)
     {
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
         // Use Prepared Statements (Security Best Practice)
         if ($profile_details) {
-            // Player with traits
-            $sql = "INSERT INTO users (first_name, last_name, user_name, email, password, location, role, profile_details, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            // Player with traits (Role 0)
+            // UPDATED: 'location' column changed to 'address', added 'lat' and 'lng'
+            $sql = "INSERT INTO users (first_name, last_name, user_name, email, password, address, lat, lng, role, profile_details, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            
             $stmt = $this->db->prepare($sql);
-            $stmt->bind_param("ssssssis", $first_name, $last_name, $username, $email, $hashed_password, $location, $role, $profile_details);
+            
+            // Type definition: s=string, d=double(decimal), i=integer
+            $stmt->bind_param("ssssssddis", $first_name, $last_name, $username, $email, $hashed_password, $address, $lat, $lng, $role, $profile_details);
         } else {
             // Manager / Admin (No traits)
-            $sql = "INSERT INTO users (first_name, last_name, user_name, email, password, location, role, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+            $sql = "INSERT INTO users (first_name, last_name, user_name, email, password, address, lat, lng, role, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            
             $stmt = $this->db->prepare($sql);
-            $stmt->bind_param("ssssssi", $first_name, $last_name, $username, $email, $hashed_password, $location, $role);
+            
+            $stmt->bind_param("ssssssddi", $first_name, $last_name, $username, $email, $hashed_password, $address, $lat, $lng, $role);
         }
 
         if ($stmt->execute()) {
@@ -95,15 +101,16 @@ class User extends db_connection
     /**
      * Update Full User Profile (General Info + Tags)
      * Used by the Edit Profile Page
+     * UPDATED: Uses 'address' instead of 'location'
      */
-    public function update_user_profile($user_id, $fname, $lname, $username, $location, $json_details)
+    public function update_user_profile($user_id, $fname, $lname, $username, $address, $json_details)
     {
         $sql = "UPDATE users 
-                SET first_name = ?, last_name = ?, user_name = ?, location = ?, profile_details = ? 
+                SET first_name = ?, last_name = ?, user_name = ?, address = ?, profile_details = ? 
                 WHERE id = ?";
         
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param("sssssi", $fname, $lname, $username, $location, $json_details, $user_id);
+        $stmt->bind_param("sssssi", $fname, $lname, $username, $address, $json_details, $user_id);
         
         return $stmt->execute();
     }
@@ -159,7 +166,5 @@ class User extends db_connection
         
         return $stmt->execute();
     }
-
-    
 }
 ?>

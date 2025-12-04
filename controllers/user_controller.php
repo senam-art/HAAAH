@@ -56,13 +56,20 @@ class UserController {
         }
 
         // 4. Create User (Calling the updated Model method)
+        // UPDATED: Now passing address, lat, and lng
+        $address = isset($data['address']) ? $data['address'] : ''; 
+        $lat = isset($data['lat']) ? $data['lat'] : 0.0;
+        $lng = isset($data['lng']) ? $data['lng'] : 0.0;
+
         $newId = $user->create_user(
             $data['first_name'],
             $data['last_name'],
             $data['email'],
             $data['user_name'],
             $data['password'],
-            $data['location'] ?? '',
+            $address,       // Replaces old 'location'
+            $lat,           // NEW
+            $lng,           // NEW
             $role,
             $profile_json
         );
@@ -133,12 +140,13 @@ class UserController {
         $json_details = json_encode($tags_data);
 
         // 3. Update
+        // Note: You might want to update this later to handle map updates too
         $result = $user->update_user_profile(
             $user_id,
             trim($data['first_name']),
             trim($data['last_name']),
             trim($data['user_name']),
-            trim($data['location'] ?? ''),
+            trim($data['address'] ?? ($data['location'] ?? '')), // Handle both names
             $json_details
         );
 
