@@ -4,17 +4,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();
-        e.stopPropagation();
 
         const formData = new FormData(form);
-        const username = formData.get('username') || formData.get('email');
+        const email = formData.get('email'); // Your HTML uses name="email"
         const password = formData.get('password');
 
-        if (!username || !password) {
-            showMessage('Please enter your username/email and password.', false);
-            return false;
+        // Client-side validation
+        if (!email || !password) {
+            showMessage('Please enter your email and password.', false);
+            return;
         }
 
+        // Button Loading State
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
         submitBtn.disabled = true;
@@ -22,71 +23,66 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fetch('../actions/login_user_action.php', {
             method: 'POST',
-            body: formData,
-            headers: { 'Accept': 'application/json' }
+            body: formData
         })
-        .then(response => response.text())
-        .then(text => {
-            let data;
-            try {
-                data = JSON.parse(text.trim());
-            } catch {
-                data = { success: false, message: 'Server returned an invalid response.' };
-            }
-
+        .then(response => response.json()) // Directly parse JSON
+        .then(data => {
             if (data.success) {
                 showMessage("Login successful! Redirecting...", true);
                 
-                // --- REDIRECTION LOGIC IN JS ---
-                // 1. Get role from response (0=Player, 1=Manager, 2=Admin)
                 const role = parseInt(data.role); 
-                let targetUrl = '../view/homepage.php'; // Default
+                let targetUrl = '../view/homepage.php'; 
 
-                // 2. Logic matching your PHP redirectIfLoggedIn()
+                // Redirect Logic
                 if (role === 1) {
-                    // Managers go to Dashboard (manage_venues.php is the dashboard, venue-profile needs an ID)
                     targetUrl = '../view/manage_venues.php'; 
                 } else if (role === 2) {
-                    // Admin
                     targetUrl = '../view/admin_dashboard.php';
-                } else {
-                    // Regular User
-                    targetUrl = '../view/homepage.php';
                 }
 
-                // 3. Execute Redirect
                 setTimeout(() => {
                     window.location.href = targetUrl;
                 }, 1000);
 
             } else {
+                // FAILSAFE: If data.message is empty, show a default error
+                const errorMsg = data.message || 'Incorrect email or password.';
+                showMessage(errorMsg, false);
+                
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
-                showMessage(data.message, false);
             }
         })
-        .catch(() => {
+        .catch(error => {
+            console.error('Error:', error);
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
-            showMessage('Network error. Please try again.', false);
+            showMessage('System error. Please try again later.', false);
         });
-        return false;
     });
 
     function showMessage(msg, success) {
         let msgDiv = document.getElementById('formMessage');
+        
+        // Create div if it doesn't exist
         if (!msgDiv) {
             msgDiv = document.createElement('div');
             msgDiv.id = 'formMessage';
-            form.prepend(msgDiv);
+            // Insert it before the form inputs start
+            form.prepend(msgDiv); 
         }
-        // Tailwind styling for message box
-        msgDiv.className = `mb-4 p-3 rounded-xl text-sm font-bold text-center border ${
+
+        // Apply classes
+        msgDiv.className = `mb-6 p-4 rounded-xl text-sm font-bold text-center border transition-all duration-300 ${
             success 
             ? 'bg-green-500/10 text-green-400 border-green-500/20' 
             : 'bg-red-500/10 text-red-400 border-red-500/20'
         }`;
+        
+        // Set text content
         msgDiv.textContent = msg;
-        msgDiv.classList.remove('hidden');
+        
+        // Ensure it is visible
+        msgDiv.style.display = 'block';
     }
 });
