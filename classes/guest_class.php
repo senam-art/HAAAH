@@ -55,7 +55,7 @@ public function getActiveEvents($search = '', $lat = null, $lng = null) {
         $sql = "SELECT e.*, v.name AS venue_name, v.address AS venue_address, v.image_urls
                 FROM events e 
                 JOIN venues v ON e.venue_id = v.venue_id 
-                WHERE e.status IN ('pending', 'confirmed') 
+                WHERE e.status IN ('pending', 'open') 
                 AND e.is_approved = 1
                 AND (e.title LIKE '%$safe_term%' 
                      OR v.name LIKE '%$safe_term%' 
