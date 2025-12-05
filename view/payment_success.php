@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../settings/core.php';
 require_once __DIR__ . '/../settings/db_class.php';
 
 if (!isset($_GET['payment_id'])) {

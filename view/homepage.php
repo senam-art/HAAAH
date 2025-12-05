@@ -156,7 +156,7 @@ if ($modal_type === 'venue_submitted_for_review') {
         <!-- GUEST NAVIGATION -->
         <nav id="nav-guest" class="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
             <div class="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Discover</div>
-            <a href="index.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20">
+            <a href="homepage.php" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20">
                 <i data-lucide="home" size="20"></i> <span class="text-sm">Browse Games</span>
             </a>
             

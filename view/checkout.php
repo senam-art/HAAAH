@@ -1,8 +1,8 @@
 <?php
-// Add these lines to see the real error
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// // Add these lines to see the real error
+// ini_set('display_errors', 1);
+// ini_set('display_startup_errors', 1);
+// error_reporting(E_ALL);
 // view/checkout.php
 session_start();
 

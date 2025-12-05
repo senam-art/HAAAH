@@ -1,6 +1,7 @@
 <?php
-session_start();
 
+
+require_once __DIR__ . '/../settings/core.php';
 // 1. Include Controller
 require_once __DIR__ . '/../controllers/guest_controller.php';
 

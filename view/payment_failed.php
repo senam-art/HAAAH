@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/../settings/core.php';
+
 $error_msg = isset($_GET['msg']) ? htmlspecialchars($_GET['msg']) : 'Transaction failed.';
 $event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
 ?>

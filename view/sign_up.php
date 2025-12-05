@@ -1,6 +1,6 @@
 <?php 
 require_once __DIR__ . '/../settings/core.php'; 
-// redirectIfLoggedIn() // Uncomment if your core.php is set up
+redirectIfLoggedIn() // Uncomment if your core.php is set up
 ?>
 
 <!DOCTYPE html>

@@ -1,10 +1,4 @@
 <?php
-session_start();
-
-// Define PROJECT_ROOT fallback
-if (!defined('PROJECT_ROOT')) {
-    define('PROJECT_ROOT', dirname(__DIR__));
-}
 
 require_once __DIR__ . '/../settings/core.php';
 require_once PROJECT_ROOT . '/controllers/admin_controller.php';
